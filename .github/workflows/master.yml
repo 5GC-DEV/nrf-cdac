@@ -78,8 +78,10 @@ jobs:
     needs: unit-tests
 
     env:
-      REGISTRY: docker.io
-      DOCKER_REGISTRY: ajeeshcazelabs/
+      REGISTRY: ghcr.io
+      DOCKER_REGISTRY: ghcr.io/
+      DOCKER_REPOSITORY: ios-mcn-core/
+      
     steps:
       - uses: actions/checkout@v4
 
@@ -91,9 +93,9 @@ jobs:
 
       - uses: docker/login-action@v3.1.0
         with:
-          registry: docker.io
-          username: ${{ secrets.DOCKERUSER }}
-          password: ${{ secrets.DOCKERPASS }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCRUSER }}
+          password: ${{ secrets.GHCRPASS }}
 
       - name: Build and push "master-latest" Docker image
         env:
