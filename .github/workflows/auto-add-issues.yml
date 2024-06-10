@@ -1,4 +1,4 @@
-name: Add bugs to OVERALL ISSUES DASHBOARD project
+name: auto add issues
 
 on:
   issues:
