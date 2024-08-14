@@ -84,9 +84,9 @@ jobs:
     needs: unit-tests
 
     env:
-      REGISTRY: ghcr.io
-      DOCKER_REGISTRY: ghcr.io/
-      DOCKER_REPOSITORY: ios-mcn-core/
+        REGISTRY: docker.io
+        DOCKER_REGISTRY: docker.io/
+        DOCKER_REPOSITORY: cdac5gc/
       
     steps:
       - uses: actions/checkout@v4
