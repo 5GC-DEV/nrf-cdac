@@ -7,10 +7,11 @@ name: Master workflow
 on:
   pull_request:
     branches:
-      - iosmcnmaster
+      - cdacmaster
   push:
     branches:
-      - iosmcnmaster
+      - cdacmaster
+  workflow_dispatch:
 
 jobs:
   lint:
