@@ -5,7 +5,7 @@
 #
 
 
-FROM golang:1.22.2-bookworm AS builder
+FROM golang:1.22.3-bookworm AS builder
 
 LABEL maintainer="Aether SD-Core <dev@lists.aetherproject.org>"
 
@@ -26,7 +26,7 @@ WORKDIR $GOPATH/src/nrf
 COPY . .
 RUN make all
 
-FROM alpine:3.19 as nrf
+FROM alpine:3.20 as nrf
 
 LABEL description="ONF open source 5G Core Network" \
     version="Stage 3"
