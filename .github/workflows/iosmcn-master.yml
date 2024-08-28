@@ -2,7 +2,7 @@
 # Copyright 2023 Canonical Ltd.
 # Copyright 2024 Intel Corporation
 
-name: Master workflow
+name: IOSMCN Master workflow
 
 on:
   pull_request:
@@ -24,7 +24,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4.0.0
+        uses: golangci/golangci-lint-action@v6.0.1
         with:
           version: latest
           args: -v --config ./.golangci.yml
