@@ -160,18 +160,24 @@ func HandleUpdateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.
 
 func HandleCreateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.ManagementLog.Infoln("Handle CreateSubscriptionRequest")
+	logger.ManagementLog.Infof("*** Request body: %+v", request.Body)
 	subscription := request.Body.(models.NrfSubscriptionData)
-
+	logger.ManagementLog.Infof("** Subscription Details: ReqNfType: %s, SubscriptionId: %s", subscription.ReqNfType, subscription.SubscriptionId)
+	logger.ManagementLog.Infof("** Full subscription object: %+v", subscription)
 	response, problemDetails := CreateSubscriptionProcedure(subscription)
 	if response != nil {
+		logger.ManagementLog.Infoln("CreateSubscription success")
+		logger.ManagementLog.Infof("*** Created subscription response: %+v", response)
 		logger.ManagementLog.Debugln("CreateSubscription success")
 		stats.IncrementNrfSubscriptionsStats("subscribe", string(subscription.ReqNfType), "SUCCESS")
 		return httpwrapper.NewResponse(http.StatusCreated, nil, response)
 	} else if problemDetails != nil {
+		logger.ManagementLog.Warnf("*** CreateSubscription failed with problem details: %+v", problemDetails)
 		logger.ManagementLog.Debugln("CreateSubscription failed")
 		stats.IncrementNrfSubscriptionsStats("subscribe", string(subscription.ReqNfType), "FAILURE")
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
+	logger.ManagementLog.Errorln("*** CreateSubscription failed with unspecified error")
 	problemDetails = &models.ProblemDetails{
 		Status: http.StatusForbidden,
 		Cause:  "UNSPECIFIED",
@@ -183,7 +189,9 @@ func HandleCreateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.
 
 func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (response bson.M,
 	problemDetails *models.ProblemDetails) {
+	logger.ManagementLog.Infof("*** CreateSubscriptionProcedure called for SubscriptionId generation")
 	subscription.SubscriptionId = nrf_context.SetsubscriptionId()
+	logger.ManagementLog.Infof("*** Generated SubscriptionId: %s", subscription.SubscriptionId)
 
 	tmp, err := json.Marshal(subscription)
 	if err != nil {
@@ -194,12 +202,14 @@ func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (respo
 	if err != nil {
 		logger.ManagementLog.Errorln("Unmarshal error in CreateSubscriptionProcedure: ", err)
 	}
-
+	logger.ManagementLog.Infof("*** Unmarshalled data to BSON: %+v", putData)
 	// TODO: need to store Condition !
 	if ok, _ := dbadapter.DBClient.RestfulAPIPost("Subscriptions", bson.M{"subscriptionId": subscription.SubscriptionId},
 		putData); !ok { // subscription id not exist before
+		logger.ManagementLog.Infof("**** Subscription created successfully in database for SubscriptionId: %s", subscription.SubscriptionId)
 		return putData, nil
 	} else {
+		logger.ManagementLog.Warnf("*** Failed to create subscription. SubscriptionId: %s already exists", subscription.SubscriptionId)
 		problemDetails = &models.ProblemDetails{
 			Status: http.StatusBadRequest,
 			Cause:  "CREATE_SUBSCRIPTION_ERROR",
