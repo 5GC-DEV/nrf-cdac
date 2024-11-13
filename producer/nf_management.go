@@ -103,6 +103,7 @@ func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Resp
 	logger.ManagementLog.Infoln("Handle GetNFInstancesRequest")
 	nfType := request.Query.Get("nf-type")
 	limit, err := strconv.Atoi(request.Query.Get("limit"))
+	logger.ManagementLog.Infof("**** Received parameters - nf-type: %s, limit: %s", nfType, limit)
 	if err != nil {
 		logger.ManagementLog.Errorln("Error in string conversion: ", limit)
 		problemDetails := models.ProblemDetails{
@@ -113,12 +114,14 @@ func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Resp
 
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
-
+	logger.ManagementLog.Infof("*** Parsed limit value: %d", limit)
 	response, problemDetails := GetNFInstancesProcedure(nfType, limit)
 	if response != nil {
 		logger.ManagementLog.Debugln("GetNFInstances success")
+		logger.ManagementLog.Infof("*** Response: %+v", response)
 		return httpwrapper.NewResponse(http.StatusOK, nil, response)
 	} else if problemDetails != nil {
+		logger.ManagementLog.Warnf("*** GetNFInstances failed with problem details: %+v", problemDetails)
 		logger.ManagementLog.Debugln("GetNFInstances failed")
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
@@ -126,6 +129,7 @@ func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Resp
 		Status: http.StatusForbidden,
 		Cause:  "UNSPECIFIED",
 	}
+	logger.ManagementLog.Errorln("*** GetNFInstances failed with an unspecified error")
 	logger.ManagementLog.Debugln("GetNFInstances failed")
 	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
@@ -243,16 +247,18 @@ func RemoveSubscriptionProcedure(subscriptionID string) {
 
 func GetNFInstancesProcedure(nfType string, limit int) (response *nrf_context.UriList,
 	problemDetail *models.ProblemDetails) {
+	logger.ManagementLog.Infof("*** Start GetNFInstancesProcedure with nfType: %s, limit: %d", nfType, limit)
 	// nfType := c.Query("nf-type")
 	// limit, err := strconv.Atoi(c.Query("limit"))
 	collName := "urilist"
 	filter := bson.M{"nfType": nfType}
-
+	logger.ManagementLog.Infof("*** Query filter for DB: %+v", filter)
 	UL, _ := dbadapter.DBClient.RestfulAPIGetOne(collName, filter)
 	logger.ManagementLog.Infoln("UL: ", UL)
 	originalUL := &nrf_context.UriList{}
 	err := mapstructure.Decode(UL, originalUL)
 	if err != nil {
+		logger.ManagementLog.Errorf("*** Decode error in GetNFInstancesProcedure: %v", err)
 		logger.ManagementLog.Errorln("Decode error in GetNFInstancesProcedure: ", err)
 		problemDetail := &models.ProblemDetails{
 			Title:  "System failure",
@@ -262,8 +268,10 @@ func GetNFInstancesProcedure(nfType string, limit int) (response *nrf_context.Ur
 		}
 		return nil, problemDetail
 	}
+	logger.ManagementLog.Infof("*** Decoded UriList: %+v", originalUL)
 	nrf_context.NnrfUriListLimit(originalUL, limit)
 	// c.JSON(http.StatusOK, originalUL)
+	logger.ManagementLog.Infof("*** UriList after applying limit: %+v", originalUL)
 	return originalUL, nil
 }
 
