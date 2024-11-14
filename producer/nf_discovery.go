@@ -34,6 +34,12 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 	logger.DiscoveryLog.Infoln("*** Handle NFDiscoveryRequest query %v", request.Query)
 	response, problemDetails := NFDiscoveryProcedure(request.Query)
 	logger.DiscoveryLog.Infoln("***** NF discovery successful, returning response %v", response)
+	responseJSON, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		logger.DiscoveryLog.Warnln("*** Error marshalling response to JSON:", err)
+	} else {
+		logger.DiscoveryLog.Infof("***** NF discovery successful, returning response: %s", responseJSON)
+	}
 	requesterNfType, targetNfType := GetRequesterAndTargetNfTypeGivenQueryParameters(request.Query)
 	logger.DiscoveryLog.Infof("*** Requester NF Type: %s, Target NF Type: %s", requesterNfType, targetNfType)
 	// Send Response
@@ -97,7 +103,7 @@ func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchRe
 
 	// Build Query Filter
 	var filter bson.M = buildFilter(queryParameters)
-	logger.DiscoveryLog.Debugln("query filter:", filter)
+	logger.DiscoveryLog.Infoln("*** query filter:", filter)
 
 	// Use the filter to find documents
 	nfProfilesRaw, _ := dbadapter.DBClient.RestfulAPIGetMany("NfProfile", filter)
@@ -151,12 +157,17 @@ func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchRe
 			}
 		}
 	}
+
 	// Build SearchResult model
 	searchResult := &models.SearchResult{
 		ValidityPeriod: 100,
 		NfInstances:    nfProfilesStruct,
 	}
-
+	logger.DiscoveryLog.Infof("*** SearchResult constructed with ValidityPeriod: %d", searchResult.ValidityPeriod)
+	logger.DiscoveryLog.Infof("*** Number of NF Instances in SearchResult: %d", len(searchResult.NfInstances))
+	for i, nfInstance := range searchResult.NfInstances {
+		logger.DiscoveryLog.Infof("*** NF Instance %d: %+v", i+1, nfInstance)
+	}
 	return searchResult, nil
 }
 

@@ -34,9 +34,11 @@ func HTTPSearchNFInstances(c *gin.Context) {
 	// logger.DiscoveryLog.Infoln("targetNFType: ", searchNFInstance.TargetNFType)
 	// logger.DiscoveryLog.Infoln("requesterNFType: ", searchNFInstance.RequesterNFType)
 	// logger.DiscoveryLog.Infoln("ChfSupportedPlmn: ", searchNFInstance.ChfSupportedPlmn)
-
+	logger.DiscoveryLog.Infoln("*** Starting HTTPSearchNFInstances")
+	logger.DiscoveryLog.Infof("*** Received request query parameters: %v", c.Request.URL.Query())
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Query = c.Request.URL.Query()
+	logger.DiscoveryLog.Infoln("*** Sending request to HandleNFDiscoveryRequest")
 	httpResponse := producer.HandleNFDiscoveryRequest(req)
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
@@ -49,6 +51,9 @@ func HTTPSearchNFInstances(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
+		logger.DiscoveryLog.Infof("*** HTTP response status: %d", httpResponse.Status)
+		logger.DiscoveryLog.Infof("*** Serialized response body: %s", responseBody)
 		c.Data(httpResponse.Status, "application/json", responseBody)
+		logger.DiscoveryLog.Infoln("*** Response sent successfully")
 	}
 }
