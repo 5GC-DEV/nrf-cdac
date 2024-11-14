@@ -31,19 +31,24 @@ import (
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
 	logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
-
+	logger.DiscoveryLog.Infoln("*** Handle NFDiscoveryRequest query %v", request.Query)
 	response, problemDetails := NFDiscoveryProcedure(request.Query)
+	logger.DiscoveryLog.Infoln("***** NF discovery successful, returning response %v", response)
 	requesterNfType, targetNfType := GetRequesterAndTargetNfTypeGivenQueryParameters(request.Query)
+	logger.DiscoveryLog.Infof("*** Requester NF Type: %s, Target NF Type: %s", requesterNfType, targetNfType)
 	// Send Response
 	// step 4: process the return value from step 3
 	if response != nil {
+		logger.DiscoveryLog.Infoln("*** NF discovery successful, returning response %v", response)
 		// status code is based on SPEC, and option headers
 		stats.IncrementNrfNfInstancesStats(requesterNfType, targetNfType, "SUCCESS")
 		return httpwrapper.NewResponse(http.StatusOK, nil, response)
 	} else if problemDetails != nil {
+		logger.DiscoveryLog.Warnf("*** NF discovery failed with status: %d, cause: %s", problemDetails.Status, problemDetails.Cause)
 		stats.IncrementNrfNfInstancesStats(requesterNfType, targetNfType, "FAILURE")
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
+	logger.DiscoveryLog.Warnln("*** Unspecified error occurred during NF discovery")
 	problemDetails = &models.ProblemDetails{
 		Status: http.StatusForbidden,
 		Cause:  "UNSPECIFIED",
@@ -54,7 +59,9 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 
 func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchResult,
 	problemDetails *models.ProblemDetails) {
+	logger.DiscoveryLog.Info("*** Processing NF discovery procedure")
 	if queryParameters["target-nf-type"] == nil || queryParameters["requester-nf-type"] == nil {
+		logger.DiscoveryLog.Warnln("*** Missing mandatory parameters in request")
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
@@ -1536,7 +1543,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				"$not": dnnFilter,
 			}
 		}
+		logger.DiscoveryLog.Infof("*** Adding DNN filter to the main filter with logical operator: %s", logicalOperator)
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), dnnFilter)
+		logger.DiscoveryLog.Debugf("*** Updated filter after adding DNN filter: %+v", filter)
 	}
 
 	// [Query-13] smf-serving-area
