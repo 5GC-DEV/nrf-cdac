@@ -101,6 +101,7 @@ func HandleUpdateNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Re
 
 func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.ManagementLog.Infoln("Handle GetNFInstancesRequest")
+	logger.ManagementLog.Infoln("#### TEST ######")
 	nfType := request.Query.Get("nf-type")
 	limit, err := strconv.Atoi(request.Query.Get("limit"))
 	logger.ManagementLog.Infof("**** Received parameters - nf-type: %s, limit: %s", nfType, limit)
