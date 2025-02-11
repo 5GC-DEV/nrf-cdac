@@ -30,9 +30,18 @@ import (
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
-	logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
-
+	logger.DiscoveryLog.Debugln("***Handle NFDiscoveryRequest***")
+	//log the query parameters
+	logger.DiscoveryLog.Debugln("***Query Parameters: %+v", request.Query)
 	response, problemDetails := NFDiscoveryProcedure(request.Query)
+
+	// Log the response and problem details
+	if response != nil {
+		logger.DiscoveryLog.Debugln("***NFDiscoveryProcedure Response: %+v", response)
+	} else if problemDetails != nil {
+		logger.DiscoveryLog.Debugln("***NFDiscoveryProcedure ProblemDetails: %+v", problemDetails)
+	}
+
 	requesterNfType, targetNfType := GetRequesterAndTargetNfTypeGivenQueryParameters(request.Query)
 	// Send Response
 	// step 4: process the return value from step 3
@@ -54,12 +63,14 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 
 func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchResult,
 	problemDetails *models.ProblemDetails) {
+	logger.DiscoveryLog.Debugln("***Handle NFDiscoveryProcedure***")
 	if queryParameters["target-nf-type"] == nil || queryParameters["requester-nf-type"] == nil {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
 			Cause:  "Loss mandatory parameter",
 		}
+		logger.DiscoveryLog.Error(problemDetails.Cause)
 		return nil, problemDetails
 	}
 

@@ -30,13 +30,17 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 	// parse nfInstanceId
 
 	req := httpwrapper.NewRequest(c.Request, nil)
+	logger.ManagementLog.Debugln("***HttpRequest in DeregisterNFInstance: ", req)
+
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
+	logger.ManagementLog.Debugln("***DeregisterNFInstance: ", c.Params.ByName("nfInstanceID"))
 
 	httpResponse := producer.HandleNFDeregisterRequest(req)
+	logger.ManagementLog.Debugln("***HttpResponse in DeregisterNFInstance: ", httpResponse)
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
-		logger.ManagementLog.Warnln(err)
+		logger.ManagementLog.Warnln("***Serialization error in DeregisterNFInstance: ", err)
 		problemDetails := models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
@@ -44,6 +48,7 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
+		logger.ManagementLog.Debugln("***Serialization successful in DeregisterNFInstance, sending response***")
 		c.Data(httpResponse.Status, "application/json", responseBody)
 	}
 }
@@ -51,13 +56,17 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 // GetNFInstance - Read the profile of a given NF Instance
 func HTTPGetNFInstance(c *gin.Context) {
 	req := httpwrapper.NewRequest(c.Request, nil)
+	logger.ManagementLog.Debugln("***HttpRequest in GetNFInstance: ", req)
+
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
+	logger.ManagementLog.Debugln("***DeregisterNFInstance: ", c.Params.ByName("nfInstanceID"))
 
 	httpResponse := producer.HandleGetNFInstanceRequest(req)
+	logger.ManagementLog.Debugln("***HttpResponse in GetNFInstance: ", httpResponse)
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
-		logger.ManagementLog.Warnln(err)
+		logger.ManagementLog.Warnln("***Serialization error in DeregisterNFInstance: ", err)
 		problemDetails := models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
@@ -65,6 +74,7 @@ func HTTPGetNFInstance(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
+		logger.ManagementLog.Debugln("***Serialization successful in GetNFInstance, sending response***")
 		c.Data(httpResponse.Status, "application/json", responseBody)
 	}
 }
@@ -82,13 +92,15 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		logger.ManagementLog.Errorf("Get Request Body error: %+v", err)
+		logger.ManagementLog.Errorf("***Get Request Body error: %+v", err)
 		c.JSON(http.StatusInternalServerError, problemDetail)
 		return
 	}
+	logger.ManagementLog.Debugln("***Successfully retrieved request body***")
 
 	// step 2: convert requestBody to openapi models
 	err = openapi.Deserialize(&nfprofile, requestBody, "application/json")
+	logger.ManagementLog.Infoln()
 	if err != nil {
 		problemDetail := "[Request Body] " + err.Error()
 		rsp := models.ProblemDetails{
@@ -96,24 +108,28 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 			Status: http.StatusBadRequest,
 			Detail: problemDetail,
 		}
-		logger.ManagementLog.Errorln(problemDetail)
+		logger.ManagementLog.Errorf("***Get Request Body error: %+v", err)
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
+	logger.ManagementLog.Debugln("***Successfully deserialized request body to nfprofile***")
 
 	// step 3: encapsulate the request by httpwrapper package
 	req := httpwrapper.NewRequest(c.Request, nfprofile)
+	logger.ManagementLog.Debugln("***Encapsulated request with nfprofile***")
 
 	// step 4: call producer
 	httpResponse := producer.HandleNFRegisterRequest(req)
+	logger.ManagementLog.Debugln("***Received response from HandleNFRegisterRequest***")
 
 	for key, val := range httpResponse.Header {
 		c.Header(key, val[0])
 	}
+	logger.ManagementLog.Debugln("***Set response headers***")
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
-		logger.ManagementLog.Warnln(err)
+		logger.ManagementLog.Warnln("***Serialization error: ", err)
 		problemDetails := models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
@@ -121,6 +137,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
+		logger.ManagementLog.Debugln("***Successfully serialized response body, sending response***")
 		c.Data(httpResponse.Status, "application/json", responseBody)
 	}
 }
@@ -136,7 +153,7 @@ func HTTPUpdateNFInstance(c *gin.Context) {
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		logger.ManagementLog.Errorf("Get Request Body error: %+v", err)
+		logger.ManagementLog.Errorf("***Get Request Body error: %+v", err)
 		c.JSON(http.StatusInternalServerError, problemDetail)
 		return
 	}
@@ -146,7 +163,7 @@ func HTTPUpdateNFInstance(c *gin.Context) {
 	req.Body = requestBody
 
 	httpResponse := producer.HandleUpdateNFInstanceRequest(req)
-
+	logger.ManagementLog.Debugln("***HttpResponse in HTTPUpdateNFInstance: ", httpResponse)
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
@@ -157,6 +174,7 @@ func HTTPUpdateNFInstance(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
+		logger.ManagementLog.Debugln("***Successfully serialized response body, sending response***")
 		c.Data(httpResponse.Status, "application/json", responseBody)
 	}
 }
