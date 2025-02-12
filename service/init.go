@@ -11,27 +11,27 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/urfave/cli"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
+	grpcClient "github.com/omec-project/config5g/proto/client"
+	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	"github.com/omec-project/nrf/accesstoken"
-	nrf_context "github.com/omec-project/nrf/context"
+	nrfContext "github.com/omec-project/nrf/context"
 	"github.com/omec-project/nrf/dbadapter"
 	"github.com/omec-project/nrf/discovery"
 	"github.com/omec-project/nrf/factory"
 	"github.com/omec-project/nrf/logger"
 	"github.com/omec-project/nrf/management"
 	"github.com/omec-project/nrf/metrics"
-	"github.com/omec-project/nrf/util"
 	openapiLogger "github.com/omec-project/openapi/logger"
 	"github.com/omec-project/util/http2_util"
 	utilLogger "github.com/omec-project/util/logger"
-	"github.com/omec-project/util/path_util"
+	"github.com/urfave/cli"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type NRF struct{}
@@ -39,7 +39,7 @@ type NRF struct{}
 type (
 	// Config information.
 	Config struct {
-		nrfcfg string
+		cfg string
 	}
 )
 
@@ -47,12 +47,9 @@ var config Config
 
 var nrfCLi = []cli.Flag{
 	cli.StringFlag{
-		Name:  "free5gccfg",
-		Usage: "common config file",
-	},
-	cli.StringFlag{
-		Name:  "nrfcfg",
-		Usage: "config file",
+		Name:     "cfg",
+		Usage:    "nrf config file",
+		Required: true,
 	},
 }
 
@@ -68,18 +65,17 @@ func (*NRF) GetCliCmd() (flags []cli.Flag) {
 
 func (nrf *NRF) Initialize(c *cli.Context) error {
 	config = Config{
-		nrfcfg: c.String("nrfcfg"),
+		cfg: c.String("cfg"),
 	}
 
-	if config.nrfcfg != "" {
-		if err := factory.InitConfigFactory(config.nrfcfg); err != nil {
-			return err
-		}
-	} else {
-		DefaultNrfConfigPath := path_util.Free5gcPath("free5gc/config/nrfcfg.yaml")
-		if err := factory.InitConfigFactory(DefaultNrfConfigPath); err != nil {
-			return err
-		}
+	absPath, err := filepath.Abs(config.cfg)
+	if err != nil {
+		logger.CfgLog.Errorln(err)
+		return err
+	}
+
+	if err := factory.InitConfigFactory(absPath); err != nil {
+		return err
 	}
 
 	nrf.setLogLevel()
@@ -88,7 +84,66 @@ func (nrf *NRF) Initialize(c *cli.Context) error {
 		return err
 	}
 
+	factory.NrfConfig.CfgLocation = absPath
+
+	if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
+		logger.InitLog.Infoln("MANAGED_BY_CONFIG_POD is true")
+		go manageGrpcClient(factory.NrfConfig.Configuration.WebuiUri)
+	}
+
 	return nil
+}
+
+// manageGrpcClient connects the config pod GRPC server and subscribes the config changes.
+// Then it updates NRF configuration.
+func manageGrpcClient(webuiUri string) {
+	var configChannel chan *protos.NetworkSliceResponse
+	var client grpcClient.ConfClient
+	var stream protos.ConfigService_NetworkSliceSubscribeClient
+	var err error
+	count := 0
+	for {
+		if client != nil {
+			if client.CheckGrpcConnectivity() != "ready" {
+				time.Sleep(time.Second * 30)
+				count++
+				if count > 5 {
+					err = client.GetConfigClientConn().Close()
+					if err != nil {
+						logger.InitLog.Infof("failing ConfigClient is not closed properly: %+v", err)
+					}
+					client = nil
+					count = 0
+				}
+				logger.InitLog.Infoln("checking the connectivity readiness")
+				continue
+			}
+
+			if stream == nil {
+				stream, err = client.SubscribeToConfigServer()
+				if err != nil {
+					logger.InitLog.Infof("failing SubscribeToConfigServer: %+v", err)
+					continue
+				}
+			}
+
+			if configChannel == nil {
+				configChannel = client.PublishOnConfigChange(true, stream)
+				logger.InitLog.Infoln("PublishOnConfigChange is triggered")
+				go factory.NrfConfig.UpdateConfig(configChannel)
+				logger.InitLog.Infoln("NRF updateConfig is triggered")
+			}
+		} else {
+			client, err = grpcClient.ConnectToConfigServer(webuiUri)
+			stream = nil
+			configChannel = nil
+			logger.InitLog.Infoln("connecting to config server")
+			if err != nil {
+				logger.InitLog.Errorf("%+v", err)
+			}
+			continue
+		}
+	}
 }
 
 func (nrf *NRF) setLogLevel() {
@@ -158,8 +213,8 @@ func (nrf *NRF) FilterCli(c *cli.Context) (args []string) {
 
 func (nrf *NRF) Start() {
 	initLog.Infoln("server started")
-	dbadapter.ConnectToDBClient(factory.NrfConfig.Configuration.MongoDBName, factory.NrfConfig.Configuration.MongoDBUrl,
-		factory.NrfConfig.Configuration.MongoDBStreamEnable, factory.NrfConfig.Configuration.NfProfileExpiryEnable)
+	config := factory.NrfConfig.Configuration
+	dbadapter.ConnectToDBClient(config.MongoDBName, config.MongoDBUrl, config.MongoDBStreamEnable, config.NfProfileExpiryEnable)
 
 	router := utilLogger.NewGinWithZap(logger.GinLog)
 
@@ -169,7 +224,7 @@ func (nrf *NRF) Start() {
 
 	go metrics.InitMetrics()
 
-	nrf_context.InitNrfContext()
+	nrfContext.InitNrfContext()
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
@@ -181,30 +236,25 @@ func (nrf *NRF) Start() {
 		os.Exit(0)
 	}()
 
-	roc := os.Getenv("MANAGED_BY_CONFIG_POD")
-	if roc == "true" {
-		initLog.Infoln("MANAGED_BY_CONFIG_POD is true")
-	} else {
-		initLog.Infoln("Use helm chart config ")
-	}
 	bindAddr := factory.NrfConfig.GetSbiBindingAddr()
-	initLog.Infof("Binding addr: [%s]", bindAddr)
-	server, err := http2_util.NewServer(bindAddr, util.NrfLogPath, router)
+	initLog.Infof("binding addr: [%s]", bindAddr)
+	sslLog := filepath.Dir(factory.NrfConfig.CfgLocation) + "/sslkey.log"
+	server, err := http2_util.NewServer(bindAddr, sslLog, router)
 
 	if server == nil {
-		initLog.Errorf("Initialize HTTP server failed: %+v", err)
+		initLog.Errorf("initialize HTTP server failed: %+v", err)
 		return
 	}
 
 	if err != nil {
-		initLog.Warnf("Initialize HTTP server: +%v", err)
+		initLog.Warnf("initialize HTTP server: +%v", err)
 	}
 
 	serverScheme := factory.NrfConfig.GetSbiScheme()
 	if serverScheme == "http" {
 		err = server.ListenAndServe()
 	} else if serverScheme == "https" {
-		err = server.ListenAndServeTLS(util.NrfPemPath, util.NrfKeyPath)
+		err = server.ListenAndServeTLS(config.Sbi.TLS.PEM, config.Sbi.TLS.Key)
 	}
 
 	if err != nil {
@@ -213,10 +263,10 @@ func (nrf *NRF) Start() {
 }
 
 func (nrf *NRF) Exec(c *cli.Context) error {
-	initLog.Debugln("args:", c.String("nrfcfg"))
+	initLog.Debugln("args:", c.String("cfg"))
 	args := nrf.FilterCli(c)
 	initLog.Debugln("filter:", args)
-	command := exec.Command("./nrf", args...)
+	command := exec.Command("nrf", args...)
 
 	if err := nrf.Initialize(c); err != nil {
 		return err
@@ -252,7 +302,7 @@ func (nrf *NRF) Exec(c *cli.Context) error {
 	go func() {
 		initLog.Infoln("NRF start")
 		if err = command.Start(); err != nil {
-			initLog.Infof("NRF Start error: %v", err)
+			initLog.Infof("NRF start error: %v", err)
 		}
 		initLog.Infoln("NRF end")
 		wg.Done()
@@ -264,6 +314,6 @@ func (nrf *NRF) Exec(c *cli.Context) error {
 }
 
 func (nrf *NRF) Terminate() {
-	logger.InitLog.Infoln("terminating NRF...")
+	logger.InitLog.Infoln("terminating NRF")
 	logger.InitLog.Infoln("NRF terminated")
 }
