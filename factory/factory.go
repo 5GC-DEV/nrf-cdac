@@ -13,23 +13,19 @@ import (
 	"fmt"
 	"os"
 
-	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
-
-	"github.com/omec-project/config5g/proto/client"
 	"github.com/omec-project/nrf/logger"
+	"gopkg.in/yaml.v2"
 )
 
 var ManagedByConfigPod bool
 
 var NrfConfig Config
 
-var initLog *zap.SugaredLogger
-
-func init() {
-	initLog = logger.InitLog
-}
-
+// InitConfigFactory gets the NrfConfig and subscribes the config pod.
+// This observes the GRPC client availability and connection status in a loop.
+// When the GRPC server pod is restarted, GRPC connection status stuck in idle.
+// If GRPC client does not exist, creates it. If client exists but GRPC connectivity is not ready,
+// then it closes the existing client start a new client.
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {
 	if content, err := os.ReadFile(f); err != nil {
@@ -43,16 +39,8 @@ func InitConfigFactory(f string) error {
 		if NrfConfig.Configuration.WebuiUri == "" {
 			NrfConfig.Configuration.WebuiUri = "webui:9876"
 		}
-		initLog.Infof("DefaultPlmnId Mnc %v , Mcc %v \n", NrfConfig.Configuration.DefaultPlmnId.Mnc, NrfConfig.Configuration.DefaultPlmnId.Mcc)
-		roc := os.Getenv("MANAGED_BY_CONFIG_POD")
-		if roc == "true" {
-			initLog.Infoln("MANAGED_BY_CONFIG_POD is true")
-			commChannel := client.ConfigWatcher(NrfConfig.Configuration.WebuiUri)
-			ManagedByConfigPod = true
-			go NrfConfig.updateConfig(commChannel)
-		}
+		logger.InitLog.Infof("DefaultPlmnId Mnc %v, Mcc %v", NrfConfig.Configuration.DefaultPlmnId.Mnc, NrfConfig.Configuration.DefaultPlmnId.Mcc)
 	}
-
 	return nil
 }
 
