@@ -28,31 +28,36 @@ import (
 )
 
 func HandleNFDeregisterRequest(request *httpwrapper.Request) *httpwrapper.Response {
-	logger.ManagementLog.Infoln("Handle NFDeregisterRequest")
+	logger.ManagementLog.Infoln("***Handle NFDeregisterRequest***")
 	nfInstanceId := request.Params["nfInstanceID"]
+	logger.ManagementLog.Infof("***Deregistering NF instance with ID: %s", nfInstanceId)
 
 	nfType, problemDetails := NFDeregisterProcedure(nfInstanceId)
 
 	if problemDetails != nil {
-		logger.ManagementLog.Debugln("deregister failure")
+		logger.ManagementLog.Debugln("***deregister failure***")
+		logger.ManagementLog.Errorf("***Failed to deregister NF instance with ID: %s, Error: %v", nfInstanceId, problemDetails)
 		stats.IncrementNrfRegistrationsStats("deregister", nfType, "FAILURE")
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
-		logger.ManagementLog.Debugln("deregister Success")
+		logger.ManagementLog.Debugln("***deregister Success***")
+		logger.ManagementLog.Infof("***Successfully deregistered NF instance with ID: %s", nfInstanceId)
 		stats.IncrementNrfRegistrationsStats("deregister", nfType, "SUCCESS")
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
 func HandleGetNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Response {
-	logger.ManagementLog.Infoln("Handle GetNFInstanceRequest")
+	logger.ManagementLog.Infoln("***Handle GetNFInstanceRequest***")
 	nfInstanceId := request.Params["nfInstanceID"]
-
+	logger.ManagementLog.Debugf("***Received NF InstanceId: %+v", nfInstanceId)
 	response := GetNFInstanceProcedure(nfInstanceId)
-
+	logger.ManagementLog.Debugf("***HandleGetNFInstanceRequest response: %+v", response)
 	if response != nil {
+		logger.ManagementLog.Infof("***Successfully retrieved NF instance with ID: %s", nfInstanceId)
 		return httpwrapper.NewResponse(http.StatusOK, nil, response)
 	} else {
+		logger.ManagementLog.Warnf("***Failed to retrieve NF instance with ID: %s", nfInstanceId)
 		problemDetails := &models.ProblemDetails{
 			Status: http.StatusNotFound,
 			Cause:  "UNSPECIFIED",
@@ -64,47 +69,56 @@ func HandleGetNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Respo
 func HandleNFRegisterRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.ManagementLog.Infoln("Handle NFRegisterRequest")
 	nfProfile := request.Body.(models.NfProfile)
+	logger.ManagementLog.Debugf("***Received NF Profile: %+v", nfProfile)
 
 	header, response, problemDetails := NFRegisterProcedure(nfProfile)
 
 	if response != nil {
-		logger.ManagementLog.Debugln("register success")
-		stats.IncrementNrfRegistrationsStats("register", string(nfProfile.NfType), "SUCCESS")
+		logger.ManagementLog.Debugln("***register success")
+		stats.IncrementNrfRegistrationsStats("***register", string(nfProfile.NfType), "SUCCESS")
+		logger.ManagementLog.Infof("***Successfully registered NF instance with ID: %s", nfProfile.NfInstanceId)
 		return httpwrapper.NewResponse(http.StatusCreated, header, response)
 	} else if problemDetails != nil {
-		logger.ManagementLog.Debugln("register failed")
-		stats.IncrementNrfRegistrationsStats("register", string(nfProfile.NfType), "FAILURE")
+		logger.ManagementLog.Debugln("***register failed")
+		stats.IncrementNrfRegistrationsStats("***register", string(nfProfile.NfType), "FAILURE")
+		logger.ManagementLog.Errorf("***Failed to register NF instance with ID: %s, Error: %v", nfProfile.NfInstanceId, problemDetails)
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 	problemDetails = &models.ProblemDetails{
 		Status: http.StatusForbidden,
 		Cause:  "UNSPECIFIED",
 	}
-	logger.ManagementLog.Debugln("register failed")
-	stats.IncrementNrfRegistrationsStats("register", string(nfProfile.NfType), "FAILURE")
+	logger.ManagementLog.Debugln("***register failed")
+	stats.IncrementNrfRegistrationsStats("***register", string(nfProfile.NfType), "FAILURE")
+	logger.ManagementLog.Errorf("***Failed to register NF instance with ID: %s, unspecified error", nfProfile.NfInstanceId)
 	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
 
 func HandleUpdateNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Response {
-	logger.ManagementLog.Infoln("Handle UpdateNFInstanceRequest")
+	logger.ManagementLog.Infoln("***Handle UpdateNFInstanceRequest***")
 	nfInstanceID := request.Params["nfInstanceID"]
 	patchJSON := request.Body.([]byte)
 
 	response := UpdateNFInstanceProcedure(nfInstanceID, patchJSON)
 	if response != nil {
+		logger.ManagementLog.Debugf("***UpdateNFInstanceProcedure response: %+v", response)
 		stats.IncrementNrfRegistrationsStats("update", fmt.Sprint(response["nfType"]), "SUCCESS")
+		logger.ManagementLog.Infoln("***NF instance update successful")
 		return httpwrapper.NewResponse(http.StatusOK, nil, response)
 	} else {
+		logger.ManagementLog.Warnln("***UpdateNFInstanceProcedure returned nil response***")
+		stats.IncrementNrfRegistrationsStats("update", "UNKNOWN_NF", "FAILURE")
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
 func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Response {
-	logger.ManagementLog.Infoln("Handle GetNFInstancesRequest")
+	logger.ManagementLog.Infoln("***Handle GetNFInstancesRequest***")
 	nfType := request.Query.Get("nf-type")
 	limit, err := strconv.Atoi(request.Query.Get("limit"))
 	if err != nil {
-		logger.ManagementLog.Errorln("Error in string conversion: ", limit)
+		logger.ManagementLog.Errorln("***Error in string conversion: ", err)
+		logger.ManagementLog.Errorln("***Error in string conversion - limit: ", limit)
 		problemDetails := models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
@@ -116,17 +130,19 @@ func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Resp
 
 	response, problemDetails := GetNFInstancesProcedure(nfType, limit)
 	if response != nil {
-		logger.ManagementLog.Debugln("GetNFInstances success")
+		logger.ManagementLog.Errorln("***GetNFInstancesProcedure response: ", response)
+		logger.ManagementLog.Debugln("***GetNFInstancesProcedure success***")
 		return httpwrapper.NewResponse(http.StatusOK, nil, response)
 	} else if problemDetails != nil {
-		logger.ManagementLog.Debugln("GetNFInstances failed")
+		logger.ManagementLog.Errorln("***GetNFInstancesProcedure problemDetails: ", problemDetails)
+		logger.ManagementLog.Debugln("***GetNFInstancesProcedure failed***")
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 	problemDetails = &models.ProblemDetails{
 		Status: http.StatusForbidden,
 		Cause:  "UNSPECIFIED",
 	}
-	logger.ManagementLog.Debugln("GetNFInstances failed")
+	logger.ManagementLog.Debugln("***GetNFInstances failed***")
 	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
 
