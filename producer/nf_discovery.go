@@ -30,16 +30,19 @@ import (
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
 	logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
+	logger.DiscoveryLog.Infoln("---Handle NFDiscoveryRequest")
 
 	response, problemDetails := NFDiscoveryProcedure(request.Query)
 	requesterNfType, targetNfType := GetRequesterAndTargetNfTypeGivenQueryParameters(request.Query)
 	// Send Response
 	// step 4: process the return value from step 3
 	if response != nil {
+		logger.DiscoveryLog.Info("---status ok")
 		// status code is based on SPEC, and option headers
 		stats.IncrementNrfNfInstancesStats(requesterNfType, targetNfType, "SUCCESS")
 		return httpwrapper.NewResponse(http.StatusOK, nil, response)
 	} else if problemDetails != nil {
+		logger.DiscoveryLog.Info("---problemdetails not nil")
 		stats.IncrementNrfNfInstancesStats(requesterNfType, targetNfType, "FAILURE")
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
@@ -54,6 +57,7 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchResult,
 	problemDetails *models.ProblemDetails,
 ) {
+	logger.DiscoveryLog.Info("---in NFDiscoveryProcedure")
 	if queryParameters["target-nf-type"] == nil || queryParameters["requester-nf-type"] == nil {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",
@@ -2261,6 +2265,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 }
 
 func GetRequesterAndTargetNfTypeGivenQueryParameters(queryParameters url.Values) (requesterNfType, targetNfType string) {
+	logger.DiscoveryLog.Infof("---in GetRequesterAndTargetNfTypeGivenQueryParameters")
 	requesterNfType, targetNfType = "UNKNOWN_NF", "UNKNOWN_NF"
 	if queryParameters["requester-nf-type"] != nil {
 		requesterNfType = fmt.Sprint(queryParameters["requester-nf-type"][0])
