@@ -185,10 +185,12 @@ func HandleCreateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.
 	response, problemDetails := CreateSubscriptionProcedure(subscription)
 	if response != nil {
 		logger.ManagementLog.Debugln("CreateSubscription success")
+		logger.ManagementLog.Infoln("CreateSubscription success")
 		stats.IncrementNrfSubscriptionsStats("subscribe", string(subscription.ReqNfType), "SUCCESS")
 		return httpwrapper.NewResponse(http.StatusCreated, nil, response)
 	} else if problemDetails != nil {
 		logger.ManagementLog.Debugln("CreateSubscription failed")
+		logger.ManagementLog.Infoln("CreateSubscription failed")
 		stats.IncrementNrfSubscriptionsStats("subscribe", string(subscription.ReqNfType), "FAILURE")
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
@@ -197,6 +199,7 @@ func HandleCreateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.
 		Cause:  "UNSPECIFIED",
 	}
 	logger.ManagementLog.Debugln("CreateSubscription failed")
+	logger.ManagementLog.Debugln("CreateSubscription failedd")
 	stats.IncrementNrfSubscriptionsStats("subscribe", string(subscription.ReqNfType), "FAILURE")
 	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
@@ -204,7 +207,10 @@ func HandleCreateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.
 func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (response bson.M,
 	problemDetails *models.ProblemDetails,
 ) {
+	logger.ManagementLog.Info("---CreateSubscriptionProcedure")
 	subscription.SubscriptionId = nrf_context.SetsubscriptionId()
+
+	logger.ManagementLog.Info("---SubscriptionId: ", subscription.SubscriptionId)
 
 	tmp, err := json.Marshal(subscription)
 	if err != nil {
