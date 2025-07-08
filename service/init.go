@@ -29,7 +29,7 @@ import (
 	openapiLogger "github.com/omec-project/openapi/logger"
 	"github.com/omec-project/util/http2_util"
 	utilLogger "github.com/omec-project/util/logger"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -46,7 +46,7 @@ type (
 var config Config
 
 var nrfCLi = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:     "cfg",
 		Usage:    "nrf config file",
 		Required: true,
@@ -63,7 +63,7 @@ func (*NRF) GetCliCmd() (flags []cli.Flag) {
 	return nrfCLi
 }
 
-func (nrf *NRF) Initialize(c *cli.Context) error {
+func (nrf *NRF) Initialize(c *cli.Command) error {
 	config = Config{
 		cfg: c.String("cfg"),
 	}
@@ -104,7 +104,7 @@ func manageGrpcClient(webuiUri string) {
 	count := 0
 	for {
 		if client != nil {
-			if client.CheckGrpcConnectivity() != "ready" {
+			if client.CheckGrpcConnectivity() != "READY" {
 				time.Sleep(time.Second * 30)
 				count++
 				if count > 5 {
@@ -133,6 +133,8 @@ func manageGrpcClient(webuiUri string) {
 				go factory.NrfConfig.UpdateConfig(configChannel)
 				logger.InitLog.Infoln("NRF updateConfig is triggered")
 			}
+
+			time.Sleep(time.Second * 5) // Fixes (avoids) 100% CPU utilization
 		} else {
 			client, err = grpcClient.ConnectToConfigServer(webuiUri)
 			stream = nil
@@ -198,9 +200,9 @@ func (nrf *NRF) setLogLevel() {
 	}
 }
 
-func (nrf *NRF) FilterCli(c *cli.Context) (args []string) {
+func (nrf *NRF) FilterCli(c *cli.Command) (args []string) {
 	for _, flag := range nrf.GetCliCmd() {
-		name := flag.GetName()
+		name := flag.Names()[0]
 		value := fmt.Sprint(c.Generic(name))
 		if value == "" {
 			continue
@@ -251,10 +253,14 @@ func (nrf *NRF) Start() {
 	}
 
 	serverScheme := factory.NrfConfig.GetSbiScheme()
-	if serverScheme == "http" {
+	switch serverScheme {
+	case "http":
 		err = server.ListenAndServe()
-	} else if serverScheme == "https" {
+	case "https":
 		err = server.ListenAndServeTLS(config.Sbi.TLS.PEM, config.Sbi.TLS.Key)
+	default:
+		logger.InitLog.Fatalf("HTTP server setup failed: invalid server scheme %+v", serverScheme)
+		return
 	}
 
 	if err != nil {
@@ -262,7 +268,7 @@ func (nrf *NRF) Start() {
 	}
 }
 
-func (nrf *NRF) Exec(c *cli.Context) error {
+func (nrf *NRF) Exec(c *cli.Command) error {
 	initLog.Debugln("args:", c.String("cfg"))
 	args := nrf.FilterCli(c)
 	initLog.Debugln("filter:", args)
