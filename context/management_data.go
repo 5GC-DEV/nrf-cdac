@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2025 Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -469,34 +470,30 @@ func setUriListByFilter(filter bson.M, uriList *[]string) {
 }
 
 func nnrfUriList(originalUL *UriList, UL *UriList, location []string) {
-	var i int
 	var b *Links
 	var flag bool
-	var c []Item
+	var c []models.Link
 	flag = true
 	b = new(Links)
 	size := len(location) + len(originalUL.Link.Item)
 
 	// check duplicate
-	for i = 0; i < len(originalUL.Link.Item); i++ {
-		if originalUL.Link.Item[i].Href == location[0] {
+	for _, item := range originalUL.Link.Item {
+		if item.Href == location[0] {
 			flag = false
+			break
 		}
 	}
 
 	if flag {
-		c = make([]Item, size)
-		for i = 0; i < len(originalUL.Link.Item); i++ {
-			c[i].Href = originalUL.Link.Item[i].Href
-		}
-		for i = len(originalUL.Link.Item); i < len(location)+len(originalUL.Link.Item); i++ {
-			c[i].Href = location[i-len(originalUL.Link.Item)]
+		c = make([]models.Link, size)
+		copy(c, originalUL.Link.Item)
+		for i, loc := range location {
+			c[len(originalUL.Link.Item)+i].Href = loc
 		}
 	} else {
-		c = make([]Item, size-1)
-		for i = 0; i < len(originalUL.Link.Item); i++ {
-			c[i].Href = originalUL.Link.Item[i].Href
-		}
+		c = make([]models.Link, size-1)
+		copy(c, originalUL.Link.Item)
 	}
 
 	b.Item = c
@@ -657,12 +654,9 @@ func NnrfUriListLimit(originalUL *UriList, limit int) {
 	// response limit
 
 	if limit < len(originalUL.Link.Item) {
-		var i int
-		var b *Links = new(Links)
-		var c []Item = make([]Item, limit)
-		for i = 0; i < limit; i++ {
-			c[i].Href = originalUL.Link.Item[i].Href
-		}
+		b := new(Links)
+		c := make([]models.Link, limit)
+		copy(c, originalUL.Link.Item[:limit])
 		b.Item = c
 		originalUL.Link = *b
 	}
