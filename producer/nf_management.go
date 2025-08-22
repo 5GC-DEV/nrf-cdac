@@ -95,11 +95,13 @@ func HandleUpdateNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Re
 	rawBody, _ := json.Marshal(request.Body)
 	logger.ManagementLog.Infof("DEBUG: Request.Body type=%T, content=%s", request.Body, rawBody)
 
+	logger.ManagementLog.Infof("DEBUG: nfInstanceID=%s", nfInstanceID)
 	patchJSON, ok := request.Body.([]byte)
 	if !ok {
 		logger.ManagementLog.Errorln("invalid body format")
 		return httpwrapper.NewResponse(http.StatusBadRequest, nil, map[string]string{"error": "Invalid body format"})
 	}
+	logger.ManagementLog.Infof("DEBUG: Raw request body bytes length=%d, content=%s", len(patchJSON), string(patchJSON))
 
 	response, err := updateNFInstanceProcedure(nfInstanceID, patchJSON)
 	if err != nil {
