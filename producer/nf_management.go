@@ -92,6 +92,9 @@ func HandleUpdateNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Re
 		return httpwrapper.NewResponse(http.StatusBadRequest, nil, map[string]string{"error": "Missing nfInstanceID"})
 	}
 
+	rawBody, _ := json.Marshal(request.Body)
+	logger.ManagementLog.Infof("DEBUG: Request.Body type=%T, content=%s", request.Body, rawBody)
+
 	patchJSON, ok := request.Body.([]byte)
 	if !ok {
 		logger.ManagementLog.Errorln("invalid body format")
