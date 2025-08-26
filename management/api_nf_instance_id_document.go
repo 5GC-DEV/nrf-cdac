@@ -69,7 +69,10 @@ func HTTPGetNFInstance(c *gin.Context) {
 }
 
 // HTTPRegisterNFInstance - Register a new NF Instance
+// HTTPRegisterNFInstance - Register a new NF Instance
 func HTTPRegisterNFInstance(c *gin.Context) {
+	logger.ManagementLog.Infoln("[HTTPRegisterNFInstance] Received NF Register request")
+
 	var nfprofile models.NfProfile
 
 	// step 1: retrieve http request body
@@ -81,10 +84,11 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		logger.ManagementLog.Errorf("Get Request Body error: %+v", err)
+		logger.ManagementLog.Errorf("[HTTPRegisterNFInstance] Failed to get request body: %+v", err)
 		c.JSON(http.StatusInternalServerError, problemDetail)
 		return
 	}
+	logger.ManagementLog.Infof("[HTTPRegisterNFInstance] Raw request body received: %s", string(requestBody))
 
 	// step 2: convert requestBody to openapi models
 	err = openapi.Deserialize(&nfprofile, requestBody, "application/json")
@@ -95,16 +99,20 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 			Status: http.StatusBadRequest,
 			Detail: problemDetail,
 		}
-		logger.ManagementLog.Errorln(problemDetail)
+		logger.ManagementLog.Errorf("[HTTPRegisterNFInstance] Failed to deserialize request body: %s", err.Error())
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
+	logger.ManagementLog.Infof("[HTTPRegisterNFInstance] Successfully deserialized NF Profile: %+v", nfprofile)
 
 	// step 3: encapsulate the request by httpwrapper package
 	req := httpwrapper.NewRequest(c.Request, nfprofile)
+	logger.ManagementLog.Infoln("[HTTPRegisterNFInstance] Encapsulated request created")
 
 	// step 4: call producer
 	httpResponse := producer.HandleNFRegisterRequest(req)
+	logger.ManagementLog.Infof("[HTTPRegisterNFInstance] Response from HandleNFRegisterRequest: status=%d headers=%+v",
+		httpResponse.Status, httpResponse.Header)
 
 	for key, val := range httpResponse.Header {
 		c.Header(key, val[0])
@@ -112,7 +120,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
-		logger.ManagementLog.Warnln(err)
+		logger.ManagementLog.Errorf("[HTTPRegisterNFInstance] Failed to serialize response body: %v", err)
 		problemDetails := models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
@@ -120,8 +128,12 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
+		logger.ManagementLog.Infof("[HTTPRegisterNFInstance] Sending final response: status=%d body=%s",
+			httpResponse.Status, string(responseBody))
 		c.Data(httpResponse.Status, "application/json", responseBody)
 	}
+
+	logger.ManagementLog.Infoln("[HTTPRegisterNFInstance] Completed processing NF Register request")
 }
 
 // HTTPUpdateNFInstance Update NF Instance profile
