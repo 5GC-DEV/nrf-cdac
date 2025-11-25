@@ -7,6 +7,7 @@ package service
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"os/exec"
@@ -257,7 +258,21 @@ func (nrf *NRF) Start() {
 	case "http":
 		err = server.ListenAndServe()
 	case "https":
-		err = server.ListenAndServeTLS(config.Sbi.TLS.PEM, config.Sbi.TLS.Key)
+		// err = server.ListenAndServeTLS(config.Sbi.TLS.PEM, config.Sbi.TLS.Key)
+		cert, _ := tls.LoadX509KeyPair(
+			factory.NrfConfig.Configuration.Sbi.TLS.PEM,
+			factory.NrfConfig.Configuration.Sbi.TLS.Key,
+		)
+
+		// attach cert + keylog writer together
+		server.TLSConfig.Certificates = []tls.Certificate{cert}
+
+		ln, err := tls.Listen("tcp", bindAddr, server.TLSConfig)
+		if err != nil {
+			panic(err)
+		}
+
+		err = server.Serve(ln)
 	default:
 		logger.InitLog.Fatalf("HTTP server setup failed: invalid server scheme %+v", serverScheme)
 		return
