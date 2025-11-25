@@ -266,13 +266,17 @@ func (nrf *NRF) Start() {
 
 		// attach cert + keylog writer together
 		server.TLSConfig.Certificates = []tls.Certificate{cert}
+		server.TLSConfig.NextProtos = []string{"h2"} // required for HTTP/2
 
 		ln, err := tls.Listen("tcp", bindAddr, server.TLSConfig)
 		if err != nil {
-			panic(err)
+			logger.InitLog.Fatalf("TLS listen failed: %v", err)
 		}
 
-		err = server.Serve(ln)
+		serveErr := server.Serve(ln)
+		if serveErr != nil {
+			logger.InitLog.Fatalf("HTTP/2 TLS server failed: %v", serveErr)
+		}
 	default:
 		logger.InitLog.Fatalf("HTTP server setup failed: invalid server scheme %+v", serverScheme)
 		return
