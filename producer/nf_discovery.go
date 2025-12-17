@@ -238,57 +238,40 @@ func buildFilter(queryParameters url.Values) bson.M {
 	// Mcc: Pattern: '^[0-9]{3}$'
 	// Mnc: Pattern: '^[0-9]{2,3}$'
 	if queryParameters["target-plmn-list"] != nil {
-		targetPlmnList := queryParameters["target-plmn-list"][0]
+		targetPlmnListStr := queryParameters["target-plmn-list"][0]
 
-		// 1. Log the raw string received from the URL
-		logger.DiscoveryLog.Infoln("[DEBUG] Raw target-plmn-list string:", targetPlmnList) // <--- ADD THIS LOG
+		// FIX: Use a Slice []models.PlmnId to handle the JSON Array "[...]"
+		var targetPlmns []models.PlmnId
+		err := json.Unmarshal([]byte(targetPlmnListStr), &targetPlmns)
 
-		targetPlmnListSplit := strings.Split(targetPlmnList, ",")
-		var targetPlmnListBsonArray bson.A
+		if err != nil {
+			logger.DiscoveryLog.Warnln("Unmarshal Error in targetPlmnList: ", err)
+		} else {
+			var targetPlmnListBsonArray bson.A
 
-		var temptargetPlmn string
-		for i, v := range targetPlmnListSplit {
-			if i%2 == 0 {
-				temptargetPlmn = v
-			} else {
-				temptargetPlmn += ","
-				temptargetPlmn += v
-
-				// 2. Log the specific string segment we are trying to Unmarshal
-				logger.DiscoveryLog.Infoln("[DEBUG] Attempting to Unmarshal segment:", temptargetPlmn) // <--- ADD THIS LOG
-
-				targetPlmnListtruct := &models.PlmnId{}
-				err := json.Unmarshal([]byte(temptargetPlmn), targetPlmnListtruct)
-				if err != nil {
-					// 3. Log the specific error if it fails
-					logger.DiscoveryLog.Warnln("[DEBUG] Unmarshal Failed! Error:", err) // <--- ADD THIS LOG
-					logger.DiscoveryLog.Warnln("Unmarshal Error in targetPlmnListtruct: ", err)
-				} else {
-					// 4. Log the successfully parsed struct
-					logger.DiscoveryLog.Infoln("[DEBUG] Unmarshal Success:", targetPlmnListtruct) // <--- ADD THIS LOG
+			// Iterate over the parsed Go structs directly
+			for _, plmn := range targetPlmns {
+				// Convert the Go struct to BSON M
+				plmnBson := bson.M{
+					"mcc": plmn.Mcc,
+					"mnc": plmn.Mnc,
 				}
 
-				targetPlmnByteArray, err := bson.Marshal(targetPlmnListtruct)
-				if err != nil {
-					logger.DiscoveryLog.Warnln("Unmarshal Error in targetPlmnListtruct: ", err)
-				}
+				// Add to the OR condition list
+				// This checks: Does the stored NF have this specific PLMN in its 'plmnList'?
+				targetPlmnListBsonArray = append(targetPlmnListBsonArray, bson.M{
+					"plmnList": bson.M{"$elemMatch": plmnBson},
+				})
+			}
 
-				targetPlmnBsonM := bson.M{}
-				err = bson.Unmarshal(targetPlmnByteArray, &targetPlmnBsonM)
-				if err != nil {
-					logger.DiscoveryLog.Errorln("unmarshal error in targetPlmnBsonM:", err)
+			// Only append to the main filter if we actually have valid PLMNs
+			if len(targetPlmnListBsonArray) > 0 {
+				targetPlmnListFilter := bson.M{
+					"$or": targetPlmnListBsonArray,
 				}
-				logger.DiscoveryLog.Debugln("temp target Plmn:", temptargetPlmn)
-
-				targetPlmnListBsonArray = append(targetPlmnListBsonArray, bson.M{"plmnList": bson.M{"$elemMatch": targetPlmnBsonM}})
+				filter["$and"] = append(filter["$and"].([]bson.M), targetPlmnListFilter)
 			}
 		}
-
-		targetPlmnListFilter := bson.M{
-			"$or": targetPlmnListBsonArray,
-		}
-
-		filter["$and"] = append(filter["$and"].([]bson.M), targetPlmnListFilter)
 	}
 
 	// [Query-6] requester-plmn-list
