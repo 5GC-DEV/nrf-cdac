@@ -48,8 +48,11 @@ func NewRouter() *gin.Engine {
 
 func AddService(engine *gin.Engine) *gin.RouterGroup {
 	group := engine.Group(factory.NRF_DISC_RES_URI_PREFIX)
+	logger.DiscoveryLog.Infof("Adding NRF service routes under prefix: %s", factory.NRF_DISC_RES_URI_PREFIX)
 
 	for _, route := range routes {
+		logger.DiscoveryLog.Infof("Registering route: Name=%s, Method=%s, Pattern=%s",
+			route.Name, route.Method, route.Pattern)
 		switch route.Method {
 		case "GET":
 			group.GET(route.Pattern, route.HandlerFunc)
@@ -61,9 +64,12 @@ func AddService(engine *gin.Engine) *gin.RouterGroup {
 			group.DELETE(route.Pattern, route.HandlerFunc)
 		case "PATCH":
 			group.PATCH(route.Pattern, route.HandlerFunc)
+		default:
+			logger.DiscoveryLog.Warnf("Unknown HTTP method %s for route %s", route.Method, route.Name)
 		}
 	}
 
+	logger.DiscoveryLog.Infof("Total NRF routes registered: %d", len(routes))
 	return group
 }
 

@@ -34,8 +34,24 @@ func HTTPSearchNFInstances(c *gin.Context) {
 	// logger.DiscoveryLog.Infoln("requesterNFType: ", searchNFInstance.RequesterNFType)
 	// logger.DiscoveryLog.Infoln("ChfSupportedPlmn: ", searchNFInstance.ChfSupportedPlmn)
 
+	// Step 0: log the raw request
+	logger.DiscoveryLog.Infoln("===== NRF Discovery GET Request Received =====")
+	logger.DiscoveryLog.Infof("Request Method: %s", c.Request.Method)
+	logger.DiscoveryLog.Infof("Request URL: %s", c.Request.URL.String())
+	logger.DiscoveryLog.Infof("Raw Path: %s", c.Request.URL.Path)
+	logger.DiscoveryLog.Infof("Raw Query: %s", c.Request.URL.RawQuery)
+	logger.DiscoveryLog.Infof("Headers: %v", c.Request.Header)
+
+	// Step 1: inspect individual query params
+	logger.DiscoveryLog.Infof("Query Param target-nf-type: %s", c.Query("target-nf-type"))
+	logger.DiscoveryLog.Infof("Query Param requester-nf-type: %s", c.Query("requester-nf-type"))
+	logger.DiscoveryLog.Infof("Query Param service-names: %s", c.Query("service-names"))
+	logger.DiscoveryLog.Infof("Query Param target-plmn-list: %s", c.Query("target-plmn-list"))
+
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Query = c.Request.URL.Query()
+	logger.DiscoveryLog.Infof("Request Query map passed to producer: %v", req.Query)
+
 	httpResponse := producer.HandleNFDiscoveryRequest(req)
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
@@ -48,6 +64,8 @@ func HTTPSearchNFInstances(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
+		logger.DiscoveryLog.Infof("NRF Response Status: %d", httpResponse.Status)
 		c.Data(httpResponse.Status, "application/json", responseBody)
 	}
+	logger.DiscoveryLog.Infoln("===== NRF Discovery GET Request Completed =====")
 }
