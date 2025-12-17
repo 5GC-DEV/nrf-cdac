@@ -308,48 +308,40 @@ func buildFilter(queryParameters url.Values) bson.M {
 
 	// [Query-10] snssais
 	// Pattern: '^[A-Fa-f0-9]{6}$'
-	if queryParameters["snssais"] != nil {
-		snssais := queryParameters["snssais"][0]
-		snssaisSplit := strings.Split(snssais, ",")
-		var snssaisBsonArray bson.A
+	if queryParameters["target-plmn-list"] != nil {
+		targetPlmnListStr := queryParameters["target-plmn-list"][0]
 
-		var tempSnssai string
-		for i, v := range snssaisSplit {
-			if i%2 == 0 {
-				tempSnssai = v
-			} else {
-				tempSnssai += ","
-				tempSnssai += v
+		// FIX: Use a Slice []models.PlmnId to handle the JSON Array "[...]"
+		var targetPlmns []models.PlmnId
+		err := json.Unmarshal([]byte(targetPlmnListStr), &targetPlmns)
+		if err != nil {
+			logger.DiscoveryLog.Warnln("Unmarshal Error in targetPlmnList: ", err)
+		}
 
-				snssaiStruct := &models.Snssai{}
-				err := json.Unmarshal([]byte(tempSnssai), snssaiStruct)
-				if err != nil {
-					logger.DiscoveryLog.Warnln("Unmarshal Error in snssaiStruct", err)
-				}
+		var targetPlmnListBsonArray bson.A
 
-				snssaiByteArray, err := bson.Marshal(snssaiStruct)
-				if err != nil {
-					logger.DiscoveryLog.Warnln("Unmarshal Error in snssaiStruct", err)
-				}
-
-				snssaiBsonM := bson.M{}
-				err = bson.Unmarshal(snssaiByteArray, &snssaiBsonM)
-				if err != nil {
-					logger.DiscoveryLog.Warnln("Unmarshal Error in snssaiBsonM", err)
-				}
-
-				snssaisBsonArray = append(snssaisBsonArray, bson.M{"sNssais": bson.M{"$elemMatch": snssaiBsonM}})
+		// Iterate over the parsed Go structs directly
+		for _, plmn := range targetPlmns {
+			// Convert the Go struct to BSON M
+			// We can construct the map directly to be cleaner and safer
+			plmnBson := bson.M{
+				"mcc": plmn.Mcc,
+				"mnc": plmn.Mnc,
 			}
+
+			// Add to the OR condition list
+			// This checks: Does the stored NF have this PLMN in its 'plmnList'?
+			targetPlmnListBsonArray = append(targetPlmnListBsonArray, bson.M{
+				"plmnList": bson.M{"$elemMatch": plmnBson},
+			})
 		}
 
-		// if not assign, serve all NF
-		snssaisBsonArray = append(snssaisBsonArray, bson.M{"sNssais": bson.M{"$exists": false}})
-
-		snssaisFilter := bson.M{
-			"$or": snssaisBsonArray,
+		if len(targetPlmnListBsonArray) > 0 {
+			targetPlmnListFilter := bson.M{
+				"$or": targetPlmnListBsonArray,
+			}
+			filter["$and"] = append(filter["$and"].([]bson.M), targetPlmnListFilter)
 		}
-
-		filter["$and"] = append(filter["$and"].([]bson.M), snssaisFilter)
 	}
 
 	// [Query-11] nsi-list
