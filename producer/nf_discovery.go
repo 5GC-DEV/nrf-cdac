@@ -27,8 +27,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-const queryParamTargetNFType = "target-nf-type"
-const queryParamRequesterNFType = "requester-nf-type"
+const (
+	queryParamTargetNFType    = "target-nf-type"
+	queryParamRequesterNFType = "requester-nf-type"
+)
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
