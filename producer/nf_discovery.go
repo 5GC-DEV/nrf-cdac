@@ -44,6 +44,9 @@ const (
 	fieldUdmInfoSupiRanges     = "udmInfo.supiRanges"
 	fieldUdmInfoGpsiRanges     = "udmInfo.gpsiRanges"
 	fieldUdmExtGrpIDRanges     = "udmInfo.externalGroupIdentifiersRanges"
+	fieldUdrInfoSupiRanges     = "udrInfo.supiRanges"
+	fieldUdrInfoGpsiRanges     = "udrInfo.gpsiRanges"
+	fieldUdrExtGroupIDRanges   = "udrInfo.externalGroupIdentifiersRanges"
 )
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
@@ -663,7 +666,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 			supiFilter = bson.M{
 				"$or": []bson.M{
 					{
-						"udrInfo.supiRanges": bson.M{
+						fieldUdrInfoSupiRanges: bson.M{
 							mongoOpElemMatch: bson.M{
 								"start": bson.M{
 									"$lte": supi,
@@ -675,15 +678,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 					{
-						"udrInfo.supiRanges": bson.M{
+						fieldUdrInfoSupiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udrInfo.gpsiRanges": bson.M{
+						fieldUdrInfoGpsiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udrInfo.externalGroupIdentifiersRanges": bson.M{
+						fieldUdrExtGroupIDRanges: bson.M{
 							mongoOpExists: false,
 						},
 					},
@@ -860,7 +863,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 			gpsiFilter = bson.M{
 				"$or": []bson.M{
 					{
-						"udrInfo.gpsiRanges": bson.M{
+						fieldUdrInfoGpsiRanges: bson.M{
 							mongoOpElemMatch: bson.M{
 								"start": bson.M{
 									"$lte": gpsi,
@@ -872,15 +875,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 					{
-						"udrInfo.supiRanges": bson.M{
+						fieldUdrInfoSupiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udrInfo.gpsiRanges": bson.M{
+						fieldUdrInfoGpsiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udrInfo.externalGroupIdentifiersRanges": bson.M{
+						fieldUdrExtGroupIDRanges: bson.M{
 							mongoOpExists: false,
 						},
 					},
@@ -931,7 +934,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 			externalGroupIdentityFilter = bson.M{
 				"$or": []bson.M{
 					{
-						"udrInfo.externalGroupIdentifiersRanges": bson.M{
+						fieldUdrExtGroupIDRanges: bson.M{
 							mongoOpElemMatch: bson.M{
 								"start": bson.M{
 									"$lte": encodedGroupId,
@@ -943,15 +946,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 					{
-						"udrInfo.supiRanges": bson.M{
+						fieldUdrInfoSupiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udrInfo.gpsiRanges": bson.M{
+						fieldUdrInfoGpsiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udrInfo.externalGroupIdentifiersRanges": bson.M{
+						fieldUdrExtGroupIDRanges: bson.M{
 							mongoOpExists: false,
 						},
 					},
