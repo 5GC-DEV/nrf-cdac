@@ -28,18 +28,22 @@ import (
 )
 
 const (
-	queryParamTargetNFType    = "target-nf-type"
-	queryParamRequesterNFType = "requester-nf-type"
-	mongoOpExists             = "$exists"
-	queryParamServiceNames    = "service-names"
-	mongoOpElemMatch          = "$elemMatch"
-	queryParamTargetPlmnList  = "target-plmn-list"
-	queryParamTargetNfFqdn    = "target-nf-fqdn"
-	queryParamNsiList         = "nsi-list"
-	queryParamSmfServingArea  = "smf-serving-area"
-	errUnmarshalTaiByteArray  = "Unmarshal Error in taiByteArray: "
-	queryParamAmfRegionID     = "amf-region-id"
-	queryParamAmfSetID        = "amf-set-id"
+	queryParamTargetNFType     = "target-nf-type"
+	queryParamRequesterNFType  = "requester-nf-type"
+	mongoOpExists              = "$exists"
+	queryParamServiceNames     = "service-names"
+	mongoOpElemMatch           = "$elemMatch"
+	queryParamTargetPlmnList   = "target-plmn-list"
+	queryParamTargetNfFqdn     = "target-nf-fqdn"
+	queryParamNsiList          = "nsi-list"
+	queryParamSmfServingArea   = "smf-serving-area"
+	errUnmarshalTaiByteArray   = "Unmarshal Error in taiByteArray: "
+	queryParamAmfRegionID      = "amf-region-id"
+	queryParamAmfSetID         = "amf-set-id"
+	errUnmarshalGuamiByteArray = "Unmarshal Error in guamiByteArray: "
+	fieldUdmInfoSupiRanges     = "udmInfo.supiRanges"
+	fieldUdmInfoGpsiRanges     = "udmInfo.gpsiRanges"
+	fieldUdmExtGrpIDRanges     = "udmInfo.externalGroupIdentifiersRanges"
 )
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
@@ -533,13 +537,13 @@ func buildFilter(queryParameters url.Values) bson.M {
 
 			guamiByteArray, err := bson.Marshal(guamiStruct)
 			if err != nil {
-				logger.DiscoveryLog.Warnln("Unmarshal Error in guamiByteArray: ", err)
+				logger.DiscoveryLog.Warnln(errUnmarshalGuamiByteArray, err)
 			}
 
 			guamiBsonM := bson.M{}
 			err = bson.Unmarshal(guamiByteArray, &guamiBsonM)
 			if err != nil {
-				logger.DiscoveryLog.Warnln("Unmarshal Error in guamiByteArray: ", err)
+				logger.DiscoveryLog.Warnln(errUnmarshalGuamiByteArray, err)
 			}
 
 			guamiFilter := bson.M{
@@ -629,7 +633,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 			supiFilter = bson.M{
 				"$or": []bson.M{
 					{
-						"udmInfo.supiRanges": bson.M{
+						fieldUdmInfoSupiRanges: bson.M{
 							mongoOpElemMatch: bson.M{
 								"start": bson.M{
 									"$lte": supi,
@@ -641,15 +645,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 					{
-						"udmInfo.supiRanges": bson.M{
+						fieldUdmInfoSupiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udmInfo.gpsiRanges": bson.M{
+						fieldUdmInfoGpsiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udmInfo.externalGroupIdentifiersRanges": bson.M{
+						fieldUdmExtGrpIDRanges: bson.M{
 							mongoOpExists: false,
 						},
 					},
@@ -826,7 +830,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 			gpsiFilter = bson.M{
 				"$or": []bson.M{
 					{
-						"udmInfo.gpsiRanges": bson.M{
+						fieldUdmInfoGpsiRanges: bson.M{
 							mongoOpElemMatch: bson.M{
 								"start": bson.M{
 									"$lte": gpsi,
@@ -838,15 +842,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 					{
-						"udmInfo.supiRanges": bson.M{
+						fieldUdmInfoSupiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udmInfo.gpsiRanges": bson.M{
+						fieldUdmInfoGpsiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udmInfo.externalGroupIdentifiersRanges": bson.M{
+						fieldUdmExtGrpIDRanges: bson.M{
 							mongoOpExists: false,
 						},
 					},
@@ -897,7 +901,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 			externalGroupIdentityFilter = bson.M{
 				"$or": []bson.M{
 					{
-						"udmInfo.externalGroupIdentifiersRanges": bson.M{
+						fieldUdmExtGrpIDRanges: bson.M{
 							mongoOpElemMatch: bson.M{
 								"start": bson.M{
 									"$lte": encodedGroupId,
@@ -909,15 +913,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 					{
-						"udmInfo.supiRanges": bson.M{
+						fieldUdmInfoSupiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udmInfo.gpsiRanges": bson.M{
+						fieldUdmInfoGpsiRanges: bson.M{
 							mongoOpExists: false,
 						},
 
-						"udmInfo.externalGroupIdentifiersRanges": bson.M{
+						fieldUdmExtGrpIDRanges: bson.M{
 							mongoOpExists: false,
 						},
 					},
@@ -1685,13 +1689,13 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 
 			guamiByteArray, err := bson.Marshal(guamiStruct)
 			if err != nil {
-				logger.DiscoveryLog.Warnln("Unmarshal Error in guamiByteArray: ", err)
+				logger.DiscoveryLog.Warnln(errUnmarshalGuamiByteArray, err)
 			}
 
 			guamiBsonM := bson.M{}
 			err = bson.Unmarshal(guamiByteArray, &guamiBsonM)
 			if err != nil {
-				logger.DiscoveryLog.Warnln("Unmarshal Error in guamiByteArray: ", err)
+				logger.DiscoveryLog.Warnln(errUnmarshalGuamiByteArray, err)
 			}
 
 			guamiFilter = bson.M{
