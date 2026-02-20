@@ -27,6 +27,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+const queryParamTargetNFType = "target-nf-type"
+const queryParamRequesterNFType = "requester-nf-type"
+
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
 	logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
@@ -54,7 +57,7 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchResult,
 	problemDetails *models.ProblemDetails,
 ) {
-	if queryParameters["target-nf-type"] == nil || queryParameters["requester-nf-type"] == nil {
+	if queryParameters[queryParamTargetNFType] == nil || queryParameters[queryParamRequesterNFType] == nil {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
@@ -115,7 +118,7 @@ func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchRe
 	})
 
 	// handle ipv4 & ipv6
-	if queryParameters["target-nf-type"][0] == "BSF" {
+	if queryParameters[queryParamTargetNFType][0] == "BSF" {
 		for i, nfProfile := range nfProfilesStruct {
 			if nfProfile.BsfInfo.Ipv4AddressRanges != nil {
 				for j := range *nfProfile.BsfInfo.Ipv4AddressRanges {
@@ -160,7 +163,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-1] target-nf-type
-	targetNfType := queryParameters["target-nf-type"][0]
+	targetNfType := queryParameters[queryParamTargetNFType][0]
 	if targetNfType != "" {
 		targetNfTypeFilter := bson.M{
 			"nfType": targetNfType,
@@ -169,7 +172,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-2] request-nf-type
-	requesterNfType := queryParameters["requester-nf-type"][0]
+	requesterNfType := queryParameters[queryParamRequesterNFType][0]
 	if requesterNfType != "" {
 		requesterNfTypeFilter := bson.M{
 			"$or": []bson.M{
@@ -1228,8 +1231,8 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	var targetNfType string
 	if targetNfType != "" {
 		var targetNfTypeFilter bson.M
-		targetNfType = queryParameters["target-nf-type"].value
-		negative := queryParameters["target-nf-type"].negative
+		targetNfType = queryParameters[queryParamTargetNFType].value
+		negative := queryParameters[queryParamTargetNFType].negative
 		if negative {
 			targetNfTypeFilter = bson.M{
 				"nfType": bson.M{
@@ -2269,11 +2272,11 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 
 func GetRequesterAndTargetNfTypeGivenQueryParameters(queryParameters url.Values) (requesterNfType, targetNfType string) {
 	requesterNfType, targetNfType = "UNKNOWN_NF", "UNKNOWN_NF"
-	if queryParameters["requester-nf-type"] != nil {
-		requesterNfType = fmt.Sprint(queryParameters["requester-nf-type"][0])
+	if queryParameters[queryParamRequesterNFType] != nil {
+		requesterNfType = fmt.Sprint(queryParameters[queryParamRequesterNFType][0])
 	}
-	if queryParameters["target-nf-type"] != nil {
-		targetNfType = fmt.Sprint(queryParameters["target-nf-type"][0])
+	if queryParameters[queryParamTargetNFType] != nil {
+		targetNfType = fmt.Sprint(queryParameters[queryParamTargetNFType][0])
 	}
 	return requesterNfType, targetNfType
 }
