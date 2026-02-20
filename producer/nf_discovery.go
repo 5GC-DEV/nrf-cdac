@@ -30,6 +30,7 @@ import (
 const (
 	queryParamTargetNFType    = "target-nf-type"
 	queryParamRequesterNFType = "requester-nf-type"
+	mongoOpExists             = "$exists"
 )
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
@@ -180,7 +181,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 			"$or": []bson.M{
 				{"allowedNfTypes": requesterNfType},
 				{"allowedNfTypes": bson.M{
-					"$exists": false,
+					mongoOpExists: false,
 				}},
 			},
 		}
@@ -229,7 +230,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					"nfServices": bson.M{
 						"$elemMatch": bson.M{
 							"allowedNfDomains": bson.M{
-								"$exists": false,
+								mongoOpExists: false,
 							},
 						},
 					},
@@ -344,7 +345,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 		}
 
 		// if not assign, serve all NF
-		snssaisBsonArray = append(snssaisBsonArray, bson.M{"sNssais": bson.M{"$exists": false}})
+		snssaisBsonArray = append(snssaisBsonArray, bson.M{"sNssais": bson.M{mongoOpExists: false}})
 
 		snssaisFilter := bson.M{
 			"$or": snssaisBsonArray,
@@ -406,7 +407,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"bsfInfo.dnnList": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -419,7 +420,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"pcfInfo.dnnList": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -440,7 +441,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"upfInfo.smfServingArea": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -566,7 +567,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"pcfInfo.supiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -588,7 +589,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"chfInfo.supiRangeList": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -610,7 +611,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"ausfInfo.supiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -632,15 +633,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"udmInfo.supiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udmInfo.gpsiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udmInfo.externalGroupIdentifiersRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -662,15 +663,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"udrInfo.supiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udrInfo.gpsiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udrInfo.externalGroupIdentifiersRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -701,7 +702,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"bsfInfo.ipv4AddressRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -722,7 +723,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"bsfInfo.ipDomainList": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -753,7 +754,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"bsfInfo.ipv6PrefixRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -768,7 +769,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 		if pgwInd == "true" {
 			pgwIndFilter := bson.M{
 				"smfInfo.pgwFqdn": bson.M{
-					"$exists": true,
+					mongoOpExists: true,
 				},
 			}
 			filter["$and"] = append(filter["$and"].([]bson.M), pgwIndFilter)
@@ -807,7 +808,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"chfInfo.gpsiRangeList": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -829,15 +830,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"udmInfo.supiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udmInfo.gpsiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udmInfo.externalGroupIdentifiersRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -859,15 +860,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"udrInfo.supiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udrInfo.gpsiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udrInfo.externalGroupIdentifiersRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -900,15 +901,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"udmInfo.supiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udmInfo.gpsiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udmInfo.externalGroupIdentifiersRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -930,15 +931,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"udrInfo.supiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udrInfo.gpsiRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 
 						"udrInfo.externalGroupIdentifiersRanges": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -959,7 +960,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"udrInfo.supportedDataSets": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -981,7 +982,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"ausfInfo.routingIndicators": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -994,7 +995,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"udmInfo.routingIndicators": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -1106,7 +1107,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 					},
 					{
 						"chfInfo.plmnRangeList": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
@@ -1135,7 +1136,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 				{
 					"smfInfo.accessType": bson.M{
-						"$exists": false,
+						mongoOpExists: false,
 					},
 				},
 			},
@@ -2204,7 +2205,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 					},
 					{
 						"chfInfo.plmnRangeList": bson.M{
-							"$exists": false,
+							mongoOpExists: false,
 						},
 					},
 				},
