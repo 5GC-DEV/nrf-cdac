@@ -33,6 +33,13 @@ const (
 	mongoOpExists             = "$exists"
 	queryParamServiceNames    = "service-names"
 	mongoOpElemMatch          = "$elemMatch"
+	queryParamTargetPlmnList  = "target-plmn-list"
+	queryParamTargetNfFqdn    = "target-nf-fqdn"
+	queryParamNsiList         = "nsi-list"
+	queryParamSmfServingArea  = "smf-serving-area"
+	errUnmarshalTaiByteArray  = "Unmarshal Error in taiByteArray: "
+	queryParamAmfRegionID     = "amf-region-id"
+	queryParamAmfSetID        = "amf-set-id"
 )
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
@@ -245,8 +252,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 	// [Query-5] target-plmn-list [C] = Mcc + Mnc
 	// Mcc: Pattern: '^[0-9]{3}$'
 	// Mnc: Pattern: '^[0-9]{2,3}$'
-	if queryParameters["target-plmn-list"] != nil {
-		targetPlmnListStr := queryParameters["target-plmn-list"][0]
+	if queryParameters[queryParamTargetPlmnList] != nil {
+		targetPlmnListStr := queryParameters[queryParamTargetPlmnList][0]
 
 		// The query parameter returns a JSON Array string (e.g., '[{"mcc":"208","mnc":"93"}]').
 		// Changed to Slice []models.PlmnId to handle the JSON Array input correctly
@@ -299,8 +306,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-8] target-nf-fqdn
-	if queryParameters["target-nf-fqdn"] != nil {
-		targetNfFqdn := queryParameters["target-nf-fqdn"][0]
+	if queryParameters[queryParamTargetNfFqdn] != nil {
+		targetNfFqdn := queryParameters[queryParamTargetNfFqdn][0]
 		fqdnFilter := bson.M{
 			"fqdn": targetNfFqdn,
 		}
@@ -357,8 +364,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-11] nsi-list
-	if queryParameters["nsi-list"] != nil {
-		nsiList := queryParameters["nsi-list"][0]
+	if queryParameters[queryParamNsiList] != nil {
+		nsiList := queryParameters[queryParamNsiList][0]
 		nsiListSplit := strings.Split(nsiList, ",")
 		var nsiListBsonArray bson.A
 		for _, v := range nsiListSplit {
@@ -432,9 +439,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-13] smf-serving-area
-	if queryParameters["smf-serving-area"] != nil {
+	if queryParameters[queryParamSmfServingArea] != nil {
 		var smfServingAreaFilter bson.M
-		smfServingArea := queryParameters["smf-serving-area"][0]
+		smfServingArea := queryParameters[queryParamSmfServingArea][0]
 		if targetNfType == "UPF" {
 			smfServingAreaFilter = bson.M{
 				"$or": []bson.M{
@@ -465,13 +472,13 @@ func buildFilter(queryParameters url.Values) bson.M {
 
 		taiByteArray, err := bson.Marshal(taiStruct)
 		if err != nil {
-			logger.DiscoveryLog.Warnln("Unmarshal Error in taiByteArray: ", err)
+			logger.DiscoveryLog.Warnln(errUnmarshalTaiByteArray, err)
 		}
 
 		taiBsonM := bson.M{}
 		err = bson.Unmarshal(taiByteArray, &taiBsonM)
 		if err != nil {
-			logger.DiscoveryLog.Warnln("Unmarshal Error in taiByteArray: ", err)
+			logger.DiscoveryLog.Warnln(errUnmarshalTaiByteArray, err)
 		}
 		switch targetNfType {
 		case "SMF":
@@ -491,9 +498,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-15] amf-region-id
-	if queryParameters["amf-region-id"] != nil {
+	if queryParameters[queryParamAmfRegionID] != nil {
 		if targetNfType == "AMF" {
-			amfRegionId := queryParameters["amf-region-id"][0]
+			amfRegionId := queryParameters[queryParamAmfRegionID][0]
 			amfRegionIdFilter := bson.M{
 				"amfInfo.amfRegionId": amfRegionId,
 			}
@@ -502,9 +509,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-16] amf-set-id
-	if queryParameters["amf-set-id"] != nil {
+	if queryParameters[queryParamAmfSetID] != nil {
 		if targetNfType == "AMF" {
-			amfSetId := queryParameters["amf-set-id"][0]
+			amfSetId := queryParameters[queryParamAmfSetID][0]
 			amfSetIdFilter := bson.M{
 				"amfInfo.amfSetId": amfSetId,
 			}
@@ -1330,8 +1337,8 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	// [Query-5] target-plmn-list [C] = Mcc + Mnc
 	// Mcc: Pattern: '^[0-9]{3}$'
 	// Mnc: Pattern: '^[0-9]{2,3}$'
-	if queryParameters["target-plmn-list"] != nil {
-		targetPlmnList := queryParameters["target-plmn-list"].value
+	if queryParameters[queryParamTargetPlmnList] != nil {
+		targetPlmnList := queryParameters[queryParamTargetPlmnList].value
 		targetPlmnListSplit := strings.Split(targetPlmnList, ",")
 		var targetPlmnListBsonArray bson.A
 
@@ -1365,7 +1372,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 		}
 
 		var targetPlmnListFilter bson.M
-		negative := queryParameters["target-plmn-list"].negative
+		negative := queryParameters[queryParamTargetPlmnList].negative
 		if negative {
 			targetPlmnListFilter = bson.M{
 				"PlmnList": bson.M{
@@ -1409,12 +1416,12 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-8] target-nf-fqdn
-	if queryParameters["target-nf-fqdn"] != nil {
-		targetNfFqdn := queryParameters["target-nf-fqdn"].value
+	if queryParameters[queryParamTargetNfFqdn] != nil {
+		targetNfFqdn := queryParameters[queryParamTargetNfFqdn].value
 		fqdnFilter := bson.M{
 			"fqdn": targetNfFqdn,
 		}
-		if queryParameters["target-nf-fqdn"].negative {
+		if queryParameters[queryParamTargetNfFqdn].negative {
 			fqdnFilter = bson.M{
 				"$not": fqdnFilter,
 			}
@@ -1475,8 +1482,8 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-11] nsi-list
-	if queryParameters["nsi-list"] != nil {
-		nsiList := queryParameters["nsi-list"].value
+	if queryParameters[queryParamNsiList] != nil {
+		nsiList := queryParameters[queryParamNsiList].value
 		nsiListSplit := strings.Split(nsiList, ",")
 		var nsiListBsonArray bson.A
 		for _, v := range nsiListSplit {
@@ -1487,7 +1494,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				"$all": nsiListBsonArray,
 			},
 		}
-		if queryParameters["nsi-list"].negative {
+		if queryParameters[queryParamNsiList].negative {
 			nsiListFilter = bson.M{
 				"$not": nsiListFilter,
 			}
@@ -1550,9 +1557,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-13] smf-serving-area
-	if queryParameters["smf-serving-area"] != nil {
+	if queryParameters[queryParamSmfServingArea] != nil {
 		var smfServingAreaFilter bson.M
-		smfServingArea := queryParameters["smf-serving-area"].value
+		smfServingArea := queryParameters[queryParamSmfServingArea].value
 		if targetNfType == "UPF" {
 			smfServingAreaFilter = bson.M{
 				"upfInfo": bson.M{
@@ -1562,7 +1569,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["smf-serving-area"].negative {
+		if queryParameters[queryParamSmfServingArea].negative {
 			smfServingAreaFilter = bson.M{
 				"$not": smfServingAreaFilter,
 			}
@@ -1585,13 +1592,13 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 
 		taiByteArray, err := bson.Marshal(taiStruct)
 		if err != nil {
-			logger.DiscoveryLog.Warnln("Unmarshal Error in taiByteArray: ", err)
+			logger.DiscoveryLog.Warnln(errUnmarshalTaiByteArray, err)
 		}
 
 		taiBsonM := bson.M{}
 		err = bson.Unmarshal(taiByteArray, &taiBsonM)
 		if err != nil {
-			logger.DiscoveryLog.Warnln("Unmarshal Error in taiByteArray: ", err)
+			logger.DiscoveryLog.Warnln(errUnmarshalTaiByteArray, err)
 		}
 		switch targetNfType {
 		case "SMF":
@@ -1620,10 +1627,10 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-15] amf-region-id
-	if queryParameters["amf-region-id"] != nil {
+	if queryParameters[queryParamAmfRegionID] != nil {
 		var amfRegionIdFilter bson.M
 		if targetNfType == "AMF" {
-			amfRegionId := queryParameters["amf-region-id"].value
+			amfRegionId := queryParameters[queryParamAmfRegionID].value
 			amfRegionIdFilter = bson.M{
 				"amfInfo": bson.M{
 					mongoOpElemMatch: bson.M{
@@ -1632,7 +1639,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["amf-region-id"].negative {
+		if queryParameters[queryParamAmfRegionID].negative {
 			amfRegionIdFilter = bson.M{
 				"$not": amfRegionIdFilter,
 			}
@@ -1641,10 +1648,10 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-16] amf-set-id
-	if queryParameters["amf-set-id"] != nil {
+	if queryParameters[queryParamAmfSetID] != nil {
 		var amfSetIdFilter bson.M
 		if targetNfType == "AMF" {
-			amfSetId := queryParameters["amf-set-id"].value
+			amfSetId := queryParameters[queryParamAmfSetID].value
 			amfSetIdFilter = bson.M{
 				"amfInfo": bson.M{
 					mongoOpElemMatch: bson.M{ // TOCHECK : elemMatch
@@ -1653,7 +1660,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["amf-set-id"].negative {
+		if queryParameters[queryParamAmfSetID].negative {
 			amfSetIdFilter = bson.M{
 				"$not": amfSetIdFilter,
 			}
