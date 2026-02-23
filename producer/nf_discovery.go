@@ -28,25 +28,42 @@ import (
 )
 
 const (
-	queryParamTargetNFType     = "target-nf-type"
-	queryParamRequesterNFType  = "requester-nf-type"
-	mongoOpExists              = "$exists"
-	queryParamServiceNames     = "service-names"
-	mongoOpElemMatch           = "$elemMatch"
-	queryParamTargetPlmnList   = "target-plmn-list"
-	queryParamTargetNfFqdn     = "target-nf-fqdn"
-	queryParamNsiList          = "nsi-list"
-	queryParamSmfServingArea   = "smf-serving-area"
-	errUnmarshalTaiByteArray   = "Unmarshal Error in taiByteArray: "
-	queryParamAmfRegionID      = "amf-region-id"
-	queryParamAmfSetID         = "amf-set-id"
-	errUnmarshalGuamiByteArray = "Unmarshal Error in guamiByteArray: "
-	fieldUdmInfoSupiRanges     = "udmInfo.supiRanges"
-	fieldUdmInfoGpsiRanges     = "udmInfo.gpsiRanges"
-	fieldUdmExtGrpIDRanges     = "udmInfo.externalGroupIdentifiersRanges"
-	fieldUdrInfoSupiRanges     = "udrInfo.supiRanges"
-	fieldUdrInfoGpsiRanges     = "udrInfo.gpsiRanges"
-	fieldUdrExtGroupIDRanges   = "udrInfo.externalGroupIdentifiersRanges"
+	queryParamTargetNFType            = "target-nf-type"
+	queryParamRequesterNFType         = "requester-nf-type"
+	mongoOpExists                     = "$exists"
+	queryParamServiceNames            = "service-names"
+	mongoOpElemMatch                  = "$elemMatch"
+	queryParamTargetPlmnList          = "target-plmn-list"
+	queryParamTargetNfFqdn            = "target-nf-fqdn"
+	queryParamNsiList                 = "nsi-list"
+	queryParamSmfServingArea          = "smf-serving-area"
+	errUnmarshalTaiByteArray          = "Unmarshal Error in taiByteArray: "
+	queryParamAmfRegionID             = "amf-region-id"
+	queryParamAmfSetID                = "amf-set-id"
+	errUnmarshalGuamiByteArray        = "Unmarshal Error in guamiByteArray: "
+	fieldUdmInfoSupiRanges            = "udmInfo.supiRanges"
+	fieldUdmInfoGpsiRanges            = "udmInfo.gpsiRanges"
+	fieldUdmExtGrpIDRanges            = "udmInfo.externalGroupIdentifiersRanges"
+	fieldUdrInfoSupiRanges            = "udrInfo.supiRanges"
+	fieldUdrInfoGpsiRanges            = "udrInfo.gpsiRanges"
+	fieldUdrExtGroupIDRanges          = "udrInfo.externalGroupIdentifiersRanges"
+	queryParamUeIpv4Address           = "ue-ipv4-address"
+	queryParamIpDomain                = "ip-domain"
+	queryParamUeIpv6Prefix            = "ue-ipv6-prefix"
+	queryParamPgwInd                  = "pgw-ind"
+	queryParamExternalGroupIdentity   = "external-group-identity"
+	queryParamDataSet                 = "data-set"
+	queryParamRoutingIndicator        = "routing-indicator"
+	queryParamGroupIDList             = "group-id-list"
+	queryParamDnaiList                = "dnai-list"
+	queryParamUpfIwkEpsInd            = "upf-iwk-eps-ind"
+	queryParamChfSupportedPlmn        = "chf-supported-plmn"
+	fieldChfInfoPlmnRangeList         = "chfInfo.plmnRangeList"
+	queryParamPreferredLocality       = "preferred-locality"
+	queryParamAccessType              = "access-type"
+	queryParamSupportedFeatures       = "supported-features"
+	queryParamRequesterNfInstanceFqdn = "requester-nfinstance-fqdn"
+	queryParamTargetNfInstanceID      = "target-nf-instanceid"
 )
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
@@ -697,10 +714,10 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-19] ue-ipv4-address
-	if queryParameters["ue-ipv4-address"] != nil {
+	if queryParameters[queryParamUeIpv4Address] != nil {
 		var ueIpv4AddressFilter bson.M
 		if targetNfType == "BSF" {
-			ueIpv4Address := queryParameters["ue-ipv4-address"][0]
+			ueIpv4Address := queryParameters[queryParamUeIpv4Address][0]
 			ueIpv4AddressNumber := context.Ipv4ToInt(ueIpv4Address)
 			ueIpv4AddressFilter = bson.M{
 				"$or": []bson.M{
@@ -728,10 +745,10 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-20] ip-domain
-	if queryParameters["ip-domain"] != nil {
+	if queryParameters[queryParamIpDomain] != nil {
 		var ipDomainFilter bson.M
 		if targetNfType == "BSF" {
-			ipDomain := queryParameters["ip-domain"][0]
+			ipDomain := queryParameters[queryParamIpDomain][0]
 			ipDomainFilter = bson.M{
 				"$or": []bson.M{
 					{
@@ -749,10 +766,10 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-21] ue-ipv6-prefix
-	if queryParameters["ue-ipv6-prefix"] != nil {
+	if queryParameters[queryParamUeIpv6Prefix] != nil {
 		var ueIpv6PrefixFilter bson.M
 		if targetNfType == "BSF" {
-			ueIpv6Prefix := queryParameters["ue-ipv6-prefix"][0]
+			ueIpv6Prefix := queryParameters[queryParamUeIpv6Prefix][0]
 			ueIpv6PrefixNumber := context.Ipv6ToInt(ueIpv6Prefix)
 			ueIpv6PrefixFilter = bson.M{
 				"$or": []bson.M{
@@ -780,8 +797,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-22] pgw-ind
-	if queryParameters["pgw-ind"] != nil {
-		pgwInd := queryParameters["pgw-ind"][0]
+	if queryParameters[queryParamPgwInd] != nil {
+		pgwInd := queryParameters[queryParamPgwInd][0]
 		if pgwInd == "true" {
 			pgwIndFilter := bson.M{
 				"smfInfo.pgwFqdn": bson.M{
@@ -894,9 +911,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-25] external-group-identity
-	if queryParameters["external-group-identity"] != nil {
+	if queryParameters[queryParamExternalGroupIdentity] != nil {
 		var externalGroupIdentityFilter bson.M
-		externalGroupIdentity := queryParameters["external-group-identity"][0]
+		externalGroupIdentity := queryParameters[queryParamExternalGroupIdentity][0]
 
 		encodedGroupId := context.EncodeGroupId(externalGroupIdentity)
 		switch targetNfType {
@@ -965,9 +982,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-26] data-set
-	if queryParameters["data-set"] != nil {
+	if queryParameters[queryParamDataSet] != nil {
 		var dataSetFilter bson.M
-		dataSet := queryParameters["data-set"]
+		dataSet := queryParameters[queryParamDataSet]
 		if targetNfType == "UDR" {
 			dataSetFilter = bson.M{
 				"$or": []bson.M{
@@ -986,9 +1003,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-27] routing-indicator
-	if queryParameters["routing-indicator"] != nil {
+	if queryParameters[queryParamRoutingIndicator] != nil {
 		var routingIndicatorFilter bson.M
-		routingIndicator := queryParameters["routing-indicator"][0]
+		routingIndicator := queryParameters[queryParamRoutingIndicator][0]
 		switch targetNfType {
 		case "AUSF":
 			routingIndicatorFilter = bson.M{
@@ -1021,10 +1038,10 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-28] group-id-list
-	if queryParameters["group-id-list"] != nil {
+	if queryParameters[queryParamGroupIDList] != nil {
 		var groupIdListFilter bson.M
 
-		groupIdList := queryParameters["group-id-list"][0]
+		groupIdList := queryParameters[queryParamGroupIDList][0]
 		groupIdListSplit := strings.Split(groupIdList, ",")
 		var groupIdListBsonArray bson.A
 
@@ -1055,9 +1072,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-29] dnai-list
-	if queryParameters["dnai-list"] != nil {
+	if queryParameters[queryParamDnaiList] != nil {
 		var dnaiFilter bson.M
-		dnaiList := queryParameters["dnai-list"][0]
+		dnaiList := queryParameters[queryParamDnaiList][0]
 		dnaiListSplit := strings.Split(dnaiList, ",")
 		var dnaiListBsonArray bson.A
 
@@ -1083,9 +1100,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-30] upf-iwk-eps-ind
-	if queryParameters["upf-iwk-eps-ind"] != nil {
+	if queryParameters[queryParamUpfIwkEpsInd] != nil {
 		var upfIwkEpsIndFilter bson.M
-		// upfIwkEpsInd := queryParameters["upf-iwk-eps-ind"][0]
+		// upfIwkEpsInd := queryParameters[queryParamUpfIwkEpsInd][0]
 		if targetNfType == "UPF" {
 			upfIwkEpsIndFilter = bson.M{
 				"upfInfo.iwkEpsInd": true,
@@ -1095,9 +1112,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-31] chf-supported-plmn
-	if queryParameters["chf-supported-plmn"] != nil {
+	if queryParameters[queryParamChfSupportedPlmn] != nil {
 		var chfSupportedPlmnFilter bson.M
-		chfSupportedPlmn := queryParameters["chf-supported-plmn"][0]
+		chfSupportedPlmn := queryParameters[queryParamChfSupportedPlmn][0]
 		chfSupportedPlmnStruct := &models.PlmnId{}
 		err := json.Unmarshal([]byte(chfSupportedPlmn), chfSupportedPlmnStruct)
 		if err != nil {
@@ -1110,7 +1127,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 			chfSupportedPlmnFilter = bson.M{
 				"$or": []bson.M{
 					{
-						"chfInfo.plmnRangeList": bson.M{
+						fieldChfInfoPlmnRangeList: bson.M{
 							mongoOpElemMatch: bson.M{
 								"start": bson.M{
 									"$lte": encodedchfSupportedPlmn,
@@ -1122,7 +1139,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 					{
-						"chfInfo.plmnRangeList": bson.M{
+						fieldChfInfoPlmnRangeList: bson.M{
 							mongoOpExists: false,
 						},
 					},
@@ -1134,8 +1151,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 
 	// [Query-32]  preferred-locality
 	// TODO: if no match
-	if queryParameters["preferred-locality"] != nil {
-		preferredLocality := queryParameters["preferred-locality"][0]
+	if queryParameters[queryParamPreferredLocality] != nil {
+		preferredLocality := queryParameters[queryParamPreferredLocality][0]
 		preferredLocalityFilter := bson.M{
 			"locality": preferredLocality,
 		}
@@ -1143,8 +1160,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-33] access-type
-	if queryParameters["access-type"] != nil {
-		accessType := queryParameters["access-type"][0]
+	if queryParameters[queryParamAccessType] != nil {
+		accessType := queryParameters[queryParamAccessType][0]
 		accessTypeFilter := bson.M{
 			"$or": []bson.M{
 				{
@@ -1161,8 +1178,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 	}
 
 	// [Query-34] supported-features
-	if queryParameters["supported-features"] != nil {
-		supportedFeatures := queryParameters["supported-features"][0]
+	if queryParameters[queryParamSupportedFeatures] != nil {
+		supportedFeatures := queryParameters[queryParamSupportedFeatures][0]
 		supportedFeaturesFilter := bson.M{
 			"nfServices": bson.M{
 				mongoOpElemMatch: bson.M{
@@ -1314,11 +1331,11 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-4] requester-nfinstance-fqdn
-	if queryParameters["requester-nfinstance-fqdn"] != nil {
+	if queryParameters[queryParamRequesterNfInstanceFqdn] != nil {
 		var requesterNfinstanceFqdnFilter bson.M
-		requesterNfinstanceFqdn := queryParameters["requester-nfinstance-fqdn"].value
+		requesterNfinstanceFqdn := queryParameters[queryParamRequesterNfInstanceFqdn].value
 
-		negative := queryParameters["requester-nfinstance-fqdn"].negative
+		negative := queryParameters[queryParamRequesterNfInstanceFqdn].negative
 		if negative {
 			requesterNfinstanceFqdnFilter = bson.M{
 				"nfServices": bson.M{
@@ -1403,11 +1420,11 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	// }
 
 	// [Query-7] target-nf-instanceid
-	if queryParameters["target-nf-instanceid"] != nil {
-		targetNfInstanceid := queryParameters["target-nf-instanceid"].value
+	if queryParameters[queryParamTargetNfInstanceID] != nil {
+		targetNfInstanceid := queryParameters[queryParamTargetNfInstanceID].value
 		var nfInstanceIdFilter bson.M
 
-		negative := queryParameters["target-nf-instanceid"].negative
+		negative := queryParameters[queryParamTargetNfInstanceID].negative
 		if negative {
 			nfInstanceIdFilter = bson.M{
 				"nfInstanceId": bson.M{
@@ -1820,10 +1837,10 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-19] ue-ipv4-address
-	if queryParameters["ue-ipv4-address"] != nil {
+	if queryParameters[queryParamUeIpv4Address] != nil {
 		var ueIpv4AddressFilter bson.M
 		if targetNfType == "BSF" {
-			ueIpv4Address := queryParameters["ue-ipv4-address"].value
+			ueIpv4Address := queryParameters[queryParamUeIpv4Address].value
 			ueIpv4AddressNumber := context.Ipv4ToInt(ueIpv4Address)
 			ueIpv4AddressFilter = bson.M{
 				"bsfInfo": bson.M{
@@ -1842,7 +1859,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["ue-ipv4-address"].negative {
+		if queryParameters[queryParamUeIpv4Address].negative {
 			ueIpv4AddressFilter = bson.M{
 				"$not": ueIpv4AddressFilter,
 			}
@@ -1851,10 +1868,10 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-20] ip-domain
-	if queryParameters["ip-domain"] != nil {
+	if queryParameters[queryParamIpDomain] != nil {
 		var ipDomainFilter bson.M
 		if targetNfType == "BSF" {
-			ipDomain := queryParameters["ip-domain"].value
+			ipDomain := queryParameters[queryParamIpDomain].value
 			ipDomainFilter = bson.M{
 				"bsfInfo": bson.M{
 					mongoOpElemMatch: bson.M{
@@ -1863,7 +1880,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["ip-domain"].negative {
+		if queryParameters[queryParamIpDomain].negative {
 			ipDomainFilter = bson.M{
 				"$not": ipDomainFilter,
 			}
@@ -1872,10 +1889,10 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-21] ue-ipv6-prefix
-	if queryParameters["ue-ipv6-prefix"] != nil {
+	if queryParameters[queryParamUeIpv6Prefix] != nil {
 		var ueIpv6PrefixFilter bson.M
 		if targetNfType == "BSF" {
-			ueIpv6Prefix := queryParameters["ue-ipv6-prefix"].value
+			ueIpv6Prefix := queryParameters[queryParamUeIpv6Prefix].value
 			ueIpv6PrefixNumber := context.Ipv6ToInt(ueIpv6Prefix)
 			ueIpv6PrefixFilter = bson.M{
 				"bsfInfo": bson.M{
@@ -1894,7 +1911,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["ue-ipv6-prefix"].negative {
+		if queryParameters[queryParamUeIpv6Prefix].negative {
 			ueIpv6PrefixFilter = bson.M{
 				"$not": ueIpv6PrefixFilter,
 			}
@@ -1903,9 +1920,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-22] pgw-ind
-	if queryParameters["pgw-ind"] != nil {
+	if queryParameters[queryParamPgwInd] != nil {
 		var pgwIndFilter bson.M
-		pgwInd := queryParameters["pgw-ind"].value
+		pgwInd := queryParameters[queryParamPgwInd].value
 		if pgwInd == "true" {
 			pgwIndFilter = bson.M{
 				"smfInfo": bson.M{
@@ -1917,7 +1934,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["pgw-ind"].negative {
+		if queryParameters[queryParamPgwInd].negative {
 			pgwIndFilter = bson.M{
 				"$not": pgwIndFilter,
 			}
@@ -2009,9 +2026,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-25] external-group-identity
-	if queryParameters["external-group-identity"] != nil {
+	if queryParameters[queryParamExternalGroupIdentity] != nil {
 		var externalGroupIdentityFilter bson.M
-		externalGroupIdentity := queryParameters["external-group-identity"].value
+		externalGroupIdentity := queryParameters[queryParamExternalGroupIdentity].value
 		switch targetNfType {
 		case "UDM":
 			externalGroupIdentityFilter = bson.M{
@@ -2030,7 +2047,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["external-group-identity"].negative {
+		if queryParameters[queryParamExternalGroupIdentity].negative {
 			externalGroupIdentityFilter = bson.M{
 				"$not": externalGroupIdentityFilter,
 			}
@@ -2039,9 +2056,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-26] data-set
-	if queryParameters["data-set"] != nil {
+	if queryParameters[queryParamDataSet] != nil {
 		var dataSetFilter bson.M
-		dataSet := queryParameters["data-set"]
+		dataSet := queryParameters[queryParamDataSet]
 		if targetNfType == "UDR" {
 			dataSetFilter = bson.M{
 				"udrInfo": bson.M{
@@ -2051,7 +2068,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["data-set"].negative {
+		if queryParameters[queryParamDataSet].negative {
 			dataSetFilter = bson.M{
 				"$not": dataSetFilter,
 			}
@@ -2060,9 +2077,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-27] routing-indicator
-	if queryParameters["routing-indicator"] != nil {
+	if queryParameters[queryParamRoutingIndicator] != nil {
 		var routingIndicatorFilter bson.M
-		routingIndicator := queryParameters["routing-indicator"].value
+		routingIndicator := queryParameters[queryParamRoutingIndicator].value
 		switch targetNfType {
 		case "AUSF":
 			routingIndicatorFilter = bson.M{
@@ -2081,7 +2098,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["routing-indicator"].negative {
+		if queryParameters[queryParamRoutingIndicator].negative {
 			routingIndicatorFilter = bson.M{
 				"$not": routingIndicatorFilter,
 			}
@@ -2090,10 +2107,10 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-28] group-id-list
-	if queryParameters["group-id-list"] != nil {
+	if queryParameters[queryParamGroupIDList] != nil {
 		var groupIdListFilter bson.M
 
-		groupIdList := queryParameters["group-id-list"].value
+		groupIdList := queryParameters[queryParamGroupIDList].value
 		groupIdListSplit := strings.Split(groupIdList, ",")
 		var groupIdListBsonArray bson.A
 
@@ -2132,7 +2149,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["group-id-list"].negative {
+		if queryParameters[queryParamGroupIDList].negative {
 			groupIdListFilter = bson.M{
 				"$not": groupIdListFilter,
 			}
@@ -2141,9 +2158,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-29] dnai-list
-	if queryParameters["dnai-list"] != nil {
+	if queryParameters[queryParamDnaiList] != nil {
 		var dnaiFilter bson.M
-		dnaiList := queryParameters["dnai-list"].value
+		dnaiList := queryParameters[queryParamDnaiList].value
 		dnaiListSplit := strings.Split(dnaiList, ",")
 		var dnaiListBsonArray bson.A
 
@@ -2167,7 +2184,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["dnai-list"].negative {
+		if queryParameters[queryParamDnaiList].negative {
 			dnaiFilter = bson.M{
 				"$not": dnaiFilter,
 			}
@@ -2176,9 +2193,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-30] upf-iwk-eps-ind
-	if queryParameters["upf-iwk-eps-ind"] != nil {
+	if queryParameters[queryParamUpfIwkEpsInd] != nil {
 		var upfIwkEpsIndFilter bson.M
-		// upfIwkEpsInd := queryParameters["upf-iwk-eps-ind"].value
+		// upfIwkEpsInd := queryParameters[queryParamUpfIwkEpsInd].value
 		if targetNfType == "UPF" {
 			upfIwkEpsIndFilter = bson.M{
 				"upfInfo": bson.M{
@@ -2188,7 +2205,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			}
 		}
-		if queryParameters["upf-iwk-eps-ind"].negative {
+		if queryParameters[queryParamUpfIwkEpsInd].negative {
 			upfIwkEpsIndFilter = bson.M{
 				"$not": upfIwkEpsIndFilter,
 			}
@@ -2197,9 +2214,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-31] chf-supported-plmn
-	if queryParameters["chf-supported-plmn"] != nil {
+	if queryParameters[queryParamChfSupportedPlmn] != nil {
 		var chfSupportedPlmnFilter bson.M
-		chfSupportedPlmn := queryParameters["chf-supported-plmn"].value
+		chfSupportedPlmn := queryParameters[queryParamChfSupportedPlmn].value
 		if targetNfType == "CHF" {
 			chfSupportedPlmnFilter = bson.M{
 				"$or": []bson.M{
@@ -2220,14 +2237,14 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 						},
 					},
 					{
-						"chfInfo.plmnRangeList": bson.M{
+						fieldChfInfoPlmnRangeList: bson.M{
 							mongoOpExists: false,
 						},
 					},
 				},
 			}
 		}
-		if queryParameters["chf-supported-plmn"].negative {
+		if queryParameters[queryParamChfSupportedPlmn].negative {
 			chfSupportedPlmnFilter = bson.M{
 				"$not": chfSupportedPlmnFilter,
 			}
@@ -2237,12 +2254,12 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 
 	// [Query-32]  preferred-locality
 	// TODO: if no match
-	if queryParameters["preferred-locality"] != nil {
-		preferredLocality := queryParameters["preferred-locality"].value
+	if queryParameters[queryParamPreferredLocality] != nil {
+		preferredLocality := queryParameters[queryParamPreferredLocality].value
 		preferredLocalityFilter := bson.M{
 			"locality": preferredLocality,
 		}
-		if queryParameters["preferred-locality"].negative {
+		if queryParameters[queryParamPreferredLocality].negative {
 			preferredLocalityFilter = bson.M{
 				"$not": preferredLocalityFilter,
 			}
@@ -2251,8 +2268,8 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-33] access-type
-	if queryParameters["access-type"] != nil {
-		accessType := queryParameters["access-type"].value
+	if queryParameters[queryParamAccessType] != nil {
+		accessType := queryParameters[queryParamAccessType].value
 		accessTypeFilter := bson.M{
 			"smfInfo": bson.M{
 				mongoOpElemMatch: bson.M{
@@ -2260,7 +2277,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			},
 		}
-		if queryParameters["access-type"].negative {
+		if queryParameters[queryParamAccessType].negative {
 			accessTypeFilter = bson.M{
 				"$not": accessTypeFilter,
 			}
@@ -2269,8 +2286,8 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 	}
 
 	// [Query-34] supported-features
-	if queryParameters["supported-features"] != nil {
-		supportedFeatures := queryParameters["supported-features"].value
+	if queryParameters[queryParamSupportedFeatures] != nil {
+		supportedFeatures := queryParameters[queryParamSupportedFeatures].value
 		supportedFeaturesFilter := bson.M{
 			"nfServices": bson.M{
 				mongoOpElemMatch: bson.M{
@@ -2278,7 +2295,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 				},
 			},
 		}
-		if queryParameters["supported-features"].negative {
+		if queryParameters[queryParamSupportedFeatures].negative {
 			supportedFeaturesFilter = bson.M{
 				"$not": supportedFeaturesFilter,
 			}
