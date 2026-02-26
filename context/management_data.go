@@ -503,151 +503,141 @@ func nnrfUriList(originalUL *UriList, UL *UriList, location []string) {
 func GetNofificationUri(nfProfile models.NfProfile) []string {
 	var uriList []string
 
-	// nfTypeCond
-	nfTypeCond := bson.M{
+	setUriListByFilter(buildNfTypeCond(nfProfile), &uriList)
+	setUriListByFilter(buildNfInstanceIDCond(nfProfile), &uriList)
+	setUriListByFilter(buildServiceNameCond(nfProfile), &uriList)
+	setUriListByFilter(buildAmfCond(nfProfile), &uriList)
+	setUriListByFilter(buildGuamiCond(nfProfile), &uriList)
+	setUriListByFilter(buildNetworkSliceCond(nfProfile), &uriList)
+	setUriListByFilter(buildNfGroupCond(nfProfile), &uriList)
+
+	return uriList
+}
+func buildNfTypeCond(nfProfile models.NfProfile) bson.M {
+	return bson.M{
 		"subscrCond": bson.M{
 			"nfType": nfProfile.NfType,
 		},
 	}
-	setUriListByFilter(nfTypeCond, &uriList)
-
-	// NfInstanceIdCond
-	nfInstanceIDCond := bson.M{
+}
+func buildNfInstanceIDCond(nfProfile models.NfProfile) bson.M {
+	return bson.M{
 		"subscrCond": bson.M{
 			"nfInstanceId": nfProfile.NfInstanceId,
 		},
 	}
-	setUriListByFilter(nfInstanceIDCond, &uriList)
-
-	// ServiceNameCond
-	if nfProfile.NfServices != nil {
-		var ServiceNameCond bson.M
-		var serviceNames bson.A
-		for _, nfService := range *nfProfile.NfServices {
-			serviceNames = append(serviceNames, string(nfService.ServiceName))
-		}
-		ServiceNameCond = bson.M{
-			"subscrCond.serviceName": bson.M{
-				"$in": serviceNames,
-			},
-		}
-		setUriListByFilter(ServiceNameCond, &uriList)
+}
+func buildServiceNameCond(nfProfile models.NfProfile) bson.M {
+	if nfProfile.NfServices == nil {
+		return nil
 	}
 
-	// AmfCond
-	if nfProfile.AmfInfo != nil {
-		amfCond := bson.M{
-			"subscrCond": bson.M{
-				"amfSetId":    (*nfProfile.AmfInfo).AmfSetId,
-				"amfRegionId": (*nfProfile.AmfInfo).AmfRegionId,
-			},
-		}
-		setUriListByFilter(amfCond, &uriList)
+	var serviceNames bson.A
+	for _, s := range *nfProfile.NfServices {
+		serviceNames = append(serviceNames, string(s.ServiceName))
 	}
 
-	// GuamiListCond
-	if nfProfile.AmfInfo != nil {
-		var guamiListFilter bson.M
-		if (*nfProfile.AmfInfo).GuamiList != nil {
-			var guamiListBsonArray bson.A
-			for _, guami := range *(*nfProfile.AmfInfo).GuamiList {
-				tmp, err := json.Marshal(guami)
-				if err != nil {
-					logger.ManagementLog.Error(err)
-				}
-				guamiMarshal := bson.M{}
-				err = json.Unmarshal(tmp, &guamiMarshal)
-				if err != nil {
-					logger.ManagementLog.Error(err)
-				}
-
-				guamiListBsonArray = append(guamiListBsonArray, bson.M{"subscrCond": bson.M{"$elemMatch": guamiMarshal}})
-			}
-			guamiListFilter = bson.M{
-				"$or": guamiListBsonArray,
-			}
-		}
-		setUriListByFilter(guamiListFilter, &uriList)
+	return bson.M{
+		"subscrCond.serviceName": bson.M{
+			"$in": serviceNames,
+		},
+	}
+}
+func buildAmfCond(nfProfile models.NfProfile) bson.M {
+	if nfProfile.AmfInfo == nil {
+		return nil
 	}
 
-	// NetworkSliceCond
-	if nfProfile.SNssais != nil {
-		var networkSliceFilter bson.M
-		var snssaisBsonArray bson.A
-		for _, snssai := range *nfProfile.SNssais {
-			tmp, err := json.Marshal(snssai)
-			if err != nil {
-				logger.ManagementLog.Error(err)
-			}
-			snssaiMarshal := bson.M{}
-			err = json.Unmarshal(tmp, &snssaiMarshal)
-			if err != nil {
-				logger.ManagementLog.Error(err)
-			}
-
-			snssaisBsonArray = append(snssaisBsonArray, bson.M{"subscrCond": bson.M{"$elemMatch": snssaiMarshal}})
-		}
-
-		var nsiListBsonArray bson.A
-		if nfProfile.NsiList != nil {
-			for _, nsi := range nfProfile.NsiList {
-				nsiListBsonArray = append(nsiListBsonArray, nsi)
-			}
-		}
-
-		if nsiListBsonArray != nil {
-			networkSliceFilter = bson.M{
-				"$and": bson.A{
-					bson.M{
-						"subscrCond.nsiList": bson.M{
-							"$in": nsiListBsonArray,
-						},
-					},
-					bson.M{
-						"$or": snssaisBsonArray,
-					},
-				},
-			}
-		} else {
-			networkSliceFilter = bson.M{
-				"$and": bson.A{
-					bson.M{
-						"$or": snssaisBsonArray,
-					},
-				},
-			}
-		}
-		setUriListByFilter(networkSliceFilter, &uriList)
+	return bson.M{
+		"subscrCond": bson.M{
+			"amfSetId":    nfProfile.AmfInfo.AmfSetId,
+			"amfRegionId": nfProfile.AmfInfo.AmfRegionId,
+		},
+	}
+}
+func buildGuamiCond(nfProfile models.NfProfile) bson.M {
+	if nfProfile.AmfInfo == nil || nfProfile.AmfInfo.GuamiList == nil {
+		return nil
 	}
 
-	// NfGroupCond
-	if nfProfile.UdrInfo != nil {
-		nfGroupCond := bson.M{
-			"subscrCond": bson.M{
-				"nfType":    nfProfile.NfType,
-				"nfGroupId": (*nfProfile.UdrInfo).GroupId,
-			},
-		}
-		setUriListByFilter(nfGroupCond, &uriList)
-	} else if nfProfile.UdmInfo != nil {
-		nfGroupCond := bson.M{
-			"subscrCond": bson.M{
-				"nfType":    nfProfile.NfType,
-				"nfGroupId": (*nfProfile.UdmInfo).GroupId,
-			},
-		}
-		setUriListByFilter(nfGroupCond, &uriList)
-	} else if nfProfile.AusfInfo != nil {
-		nfGroupCond := bson.M{
-			"subscrCond": bson.M{
-				"nfType":    nfProfile.NfType,
-				"nfGroupId": (*nfProfile.AusfInfo).GroupId,
-			},
-		}
-		setUriListByFilter(nfGroupCond, &uriList)
+	var orArray bson.A
+
+	for _, guami := range *nfProfile.AmfInfo.GuamiList {
+		guamiMarshal := marshalToBson(guami)
+		orArray = append(orArray,
+			bson.M{"subscrCond": bson.M{"$elemMatch": guamiMarshal}},
+		)
 	}
 
-	return uriList
+	return bson.M{"$or": orArray}
+}
+func buildNetworkSliceCond(nfProfile models.NfProfile) bson.M {
+	if nfProfile.SNssais == nil {
+		return nil
+	}
+
+	var snssaisArray bson.A
+	for _, snssai := range *nfProfile.SNssais {
+		snssaisArray = append(snssaisArray,
+			bson.M{"subscrCond": bson.M{"$elemMatch": marshalToBson(snssai)}},
+		)
+	}
+
+	if nfProfile.NsiList == nil {
+		return bson.M{
+			"$and": bson.A{
+				bson.M{"$or": snssaisArray},
+			},
+		}
+	}
+
+	var nsiArray bson.A
+	for _, nsi := range nfProfile.NsiList {
+		nsiArray = append(nsiArray, nsi)
+	}
+
+	return bson.M{
+		"$and": bson.A{
+			bson.M{
+				"subscrCond.nsiList": bson.M{"$in": nsiArray},
+			},
+			bson.M{"$or": snssaisArray},
+		},
+	}
+}
+func buildNfGroupCond(nfProfile models.NfProfile) bson.M {
+	groupID := ""
+
+	switch {
+	case nfProfile.UdrInfo != nil:
+		groupID = nfProfile.UdrInfo.GroupId
+	case nfProfile.UdmInfo != nil:
+		groupID = nfProfile.UdmInfo.GroupId
+	case nfProfile.AusfInfo != nil:
+		groupID = nfProfile.AusfInfo.GroupId
+	default:
+		return nil
+	}
+
+	return bson.M{
+		"subscrCond": bson.M{
+			"nfType":    nfProfile.NfType,
+			"nfGroupId": groupID,
+		},
+	}
+}
+func marshalToBson(v interface{}) bson.M {
+	tmp, err := json.Marshal(v)
+	if err != nil {
+		logger.ManagementLog.Error(err)
+	}
+
+	result := bson.M{}
+	if err = json.Unmarshal(tmp, &result); err != nil {
+		logger.ManagementLog.Error(err)
+	}
+
+	return result
 }
 
 func NnrfUriListLimit(originalUL *UriList, limit int) {
