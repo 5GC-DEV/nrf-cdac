@@ -178,6 +178,7 @@ func (nrf *NRF) setLogLevel() {
 		)
 	}
 }
+
 func applyLogLevel(
 	debugLevel string,
 	component string,

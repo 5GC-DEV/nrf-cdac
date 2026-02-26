@@ -83,6 +83,7 @@ func NFDiscoveryProcedure(queryParameters url.Values) (
 		NfInstances:    nfProfilesStruct,
 	}, nil
 }
+
 func validateMandatoryParams(queryParameters url.Values) *models.ProblemDetails {
 	if queryParameters["target-nf-type"] == nil ||
 		queryParameters["requester-nf-type"] == nil {
@@ -94,6 +95,7 @@ func validateMandatoryParams(queryParameters url.Values) *models.ProblemDetails 
 	}
 	return nil
 }
+
 func validateComplexQueryParam(queryParameters url.Values) *models.ProblemDetails {
 	values := queryParameters["complexQuery"]
 	if values == nil {
@@ -118,6 +120,7 @@ func validateComplexQueryParam(queryParameters url.Values) *models.ProblemDetail
 	}
 	return nil
 }
+
 func sortByExpireAt(nfProfilesRaw []map[string]interface{}) {
 	sort.Slice(nfProfilesRaw, func(i, j int) bool {
 		expI, okI := nfProfilesRaw[i]["expireAt"].(primitive.DateTime)
@@ -130,6 +133,7 @@ func sortByExpireAt(nfProfilesRaw []map[string]interface{}) {
 		return expI.Time().Before(expJ.Time())
 	})
 }
+
 func handleBSFConversion(queryParameters url.Values, nfProfiles []models.NfProfile) {
 	if queryParameters["target-nf-type"][0] != "BSF" {
 		return
@@ -140,6 +144,7 @@ func handleBSFConversion(queryParameters url.Values, nfProfiles []models.NfProfi
 		convertIPv6Ranges(&nfProfiles[i])
 	}
 }
+
 func convertIPv4Ranges(nfProfile *models.NfProfile) {
 	if nfProfile.BsfInfo.Ipv4AddressRanges == nil {
 		return
@@ -163,6 +168,7 @@ func convertIPv4Ranges(nfProfile *models.NfProfile) {
 		}
 	}
 }
+
 func convertIPv6Ranges(nfProfile *models.NfProfile) {
 	if nfProfile.BsfInfo.Ipv6PrefixRanges == nil {
 		return
