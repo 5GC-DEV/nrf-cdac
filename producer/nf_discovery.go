@@ -59,32 +59,25 @@ func NFDiscoveryProcedure(queryParameters url.Values) (
 	if problem := validateMandatoryParams(queryParameters); problem != nil {
 		return nil, problem
 	}
-
 	// Complex query validation
 	if problem := validateComplexQueryParam(queryParameters); problem != nil {
 		return nil, problem
 	}
-
 	// Build filter
 	filter := buildFilter(queryParameters)
 	logger.DiscoveryLog.Debugln("query filter:", filter)
-
 	// DB query
 	nfProfilesRaw, _ := dbadapter.DBClient.
 		RestfulAPIGetMany("NfProfile", filter)
-
 	// Decode
 	nfProfilesStruct, err := util.Decode(nfProfilesRaw, time.RFC3339)
 	if err != nil {
 		logger.DiscoveryLog.Warnln("NF Profile Raw decode error:", err)
 	}
-
 	// Sort
 	sortByExpireAt(nfProfilesRaw)
-
 	// Handle BSF IP conversion
 	handleBSFConversion(queryParameters, nfProfilesStruct)
-
 	return &models.SearchResult{
 		ValidityPeriod: 100,
 		NfInstances:    nfProfilesStruct,
@@ -93,7 +86,6 @@ func NFDiscoveryProcedure(queryParameters url.Values) (
 func validateMandatoryParams(queryParameters url.Values) *models.ProblemDetails {
 	if queryParameters["target-nf-type"] == nil ||
 		queryParameters["requester-nf-type"] == nil {
-
 		return &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,

@@ -442,7 +442,6 @@ func updateNFInstanceProcedure(nfInstanceID string, patchJSON []byte) (response 
 		logger.ManagementLog.Errorf("nf profile [%s] update failed: %v", nfProfiles[0].NfType, putErr)
 		return nil, fmt.Errorf("NF profile update is failed: %v", putErr)
 	}
-
 	logger.ManagementLog.Infof("nf profile [%s] update success", nfProfiles[0].NfType)
 	return nf, nil
 }
@@ -451,7 +450,6 @@ func GetNFInstanceProcedure(nfInstanceID string) (response map[string]interface{
 	collName := "NfProfile"
 	filter := bson.M{"nfInstanceId": nfInstanceID}
 	response, _ = dbadapter.DBClient.RestfulAPIGetOne(collName, filter)
-
 	return response
 }
 
@@ -544,15 +542,12 @@ func notifyNF(
 	nfInstanceUri string,
 	nf models.NfProfile,
 ) *models.ProblemDetails {
-
 	uriList := nrf_context.GetNofificationUri(nf)
-
 	for _, uri := range uriList {
 		if problem := SendNFStatusNotify(event, nfInstanceUri, uri); problem != nil {
 			return problem
 		}
 	}
-
 	return nil
 }
 
