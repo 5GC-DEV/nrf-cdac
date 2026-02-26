@@ -51,106 +51,142 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
 
-func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchResult,
+func NFDiscoveryProcedure(queryParameters url.Values) (
+	response *models.SearchResult,
 	problemDetails *models.ProblemDetails,
 ) {
-	if queryParameters["target-nf-type"] == nil || queryParameters["requester-nf-type"] == nil {
-		problemDetails := &models.ProblemDetails{
+	// Mandatory validation
+	if problem := validateMandatoryParams(queryParameters); problem != nil {
+		return nil, problem
+	}
+
+	// Complex query validation
+	if problem := validateComplexQueryParam(queryParameters); problem != nil {
+		return nil, problem
+	}
+
+	// Build filter
+	filter := buildFilter(queryParameters)
+	logger.DiscoveryLog.Debugln("query filter:", filter)
+
+	// DB query
+	nfProfilesRaw, _ := dbadapter.DBClient.
+		RestfulAPIGetMany("NfProfile", filter)
+
+	// Decode
+	nfProfilesStruct, err := util.Decode(nfProfilesRaw, time.RFC3339)
+	if err != nil {
+		logger.DiscoveryLog.Warnln("NF Profile Raw decode error:", err)
+	}
+
+	// Sort
+	sortByExpireAt(nfProfilesRaw)
+
+	// Handle BSF IP conversion
+	handleBSFConversion(queryParameters, nfProfilesStruct)
+
+	return &models.SearchResult{
+		ValidityPeriod: 100,
+		NfInstances:    nfProfilesStruct,
+	}, nil
+}
+func validateMandatoryParams(queryParameters url.Values) *models.ProblemDetails {
+	if queryParameters["target-nf-type"] == nil ||
+		queryParameters["requester-nf-type"] == nil {
+
+		return &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
 			Cause:  "Loss mandatory parameter",
 		}
-		return nil, problemDetails
+	}
+	return nil
+}
+func validateComplexQueryParam(queryParameters url.Values) *models.ProblemDetails {
+	values := queryParameters["complexQuery"]
+	if values == nil {
+		return nil
 	}
 
-	if queryParameters["complexQuery"] != nil {
-		// IF SUPPORT COMPLEX QUERY
-		// translate raw data to complexQuery structure
-		complexQuery := queryParameters["complexQuery"][0]
-		complexQueryStruct := &models.ComplexQuery{}
-		err := json.Unmarshal([]byte(complexQuery), complexQueryStruct)
-		if err != nil {
-			logger.DiscoveryLog.Warnln("UnMasrhal complexQuery Error: ", err)
+	complexQueryStruct := &models.ComplexQuery{}
+	if err := json.Unmarshal([]byte(values[0]), complexQueryStruct); err != nil {
+		logger.DiscoveryLog.Warnln("Unmarshal complexQuery Error:", err)
+		return nil
+	}
+
+	if complexQueryStruct.CNf != nil && complexQueryStruct.DNf != nil {
+		return &models.ProblemDetails{
+			Title:  "Invalid Parameter",
+			Status: http.StatusBadRequest,
+			Cause:  "EITHER CNF OR DNF",
+			InvalidParams: []models.InvalidParam{
+				{Param: "complexQuery"},
+			},
 		}
-		// Check either CNF or DNF
-		if complexQueryStruct.CNf != nil && complexQueryStruct.DNf != nil {
-			problemDetails := &models.ProblemDetails{
-				Title:  "Invalid Parameter",
-				Status: http.StatusBadRequest,
-				Cause:  "EITHER CNF OR DNF",
-				InvalidParams: []models.InvalidParam{
-					{Param: "complexQuery"},
-				},
-			}
-			return nil, problemDetails
-		}
 	}
-
-	// Check ComplexQuery (FOR REPORT PROBLEM!)
-
-	// Build Query Filter
-	filter := buildFilter(queryParameters)
-	logger.DiscoveryLog.Debugln("query filter:", filter)
-
-	// Use the filter to find documents
-	nfProfilesRaw, _ := dbadapter.DBClient.RestfulAPIGetMany("NfProfile", filter)
-
-	// nfProfile data for response
-	var nfProfilesStruct []models.NfProfile
-
-	nfProfilesStruct, err := util.Decode(nfProfilesRaw, time.RFC3339)
-	if err != nil {
-		logger.DiscoveryLog.Warnln("NF Profile Raw decode error: ", nfProfilesStruct)
-	}
-
-	// sort nfprofiles based on timestamp
+	return nil
+}
+func sortByExpireAt(nfProfilesRaw []map[string]interface{}) {
 	sort.Slice(nfProfilesRaw, func(i, j int) bool {
-		var updatedTimeVal time.Time
-		if nfProfilesRaw[i]["expireAt"] == nil {
+		expI, okI := nfProfilesRaw[i]["expireAt"].(primitive.DateTime)
+		expJ, okJ := nfProfilesRaw[j]["expireAt"].(primitive.DateTime)
+
+		if !okI || !okJ {
 			return false
 		}
-		updatedTimeVal = nfProfilesRaw[j]["expireAt"].(primitive.DateTime).Time()
 
-		return nfProfilesRaw[i]["expireAt"].(primitive.DateTime).Time().Before(updatedTimeVal)
+		return expI.Time().Before(expJ.Time())
 	})
+}
+func handleBSFConversion(queryParameters url.Values, nfProfiles []models.NfProfile) {
+	if queryParameters["target-nf-type"][0] != "BSF" {
+		return
+	}
 
-	// handle ipv4 & ipv6
-	if queryParameters["target-nf-type"][0] == "BSF" {
-		for i, nfProfile := range nfProfilesStruct {
-			if nfProfile.BsfInfo.Ipv4AddressRanges != nil {
-				for j := range *nfProfile.BsfInfo.Ipv4AddressRanges {
-					ipv4IntStart, err := strconv.Atoi((((*(*nfProfilesStruct[i].BsfInfo).Ipv4AddressRanges)[j]).Start))
-					if err != nil {
-						logger.DiscoveryLog.Warnln("ipv4IntStart Atoi Error: ", err)
-					}
-					((*(*nfProfilesStruct[i].BsfInfo).Ipv4AddressRanges)[j]).Start = context.Ipv4IntToIpv4String(int64(ipv4IntStart))
-					ipv4IntEnd, err := strconv.Atoi((((*(*nfProfilesStruct[i].BsfInfo).Ipv4AddressRanges)[j]).End))
-					if err != nil {
-						logger.DiscoveryLog.Warnln("ipv4IntEnd Atoi Error: ", err)
-					}
-					((*(*nfProfilesStruct[i].BsfInfo).Ipv4AddressRanges)[j]).End = context.Ipv4IntToIpv4String(int64(ipv4IntEnd))
-				}
-			}
-			if nfProfile.BsfInfo.Ipv6PrefixRanges != nil {
-				for j := range *nfProfile.BsfInfo.Ipv6PrefixRanges {
-					ipv6IntStart := new(big.Int)
-					ipv6IntStart.SetString(((*(*nfProfilesStruct[i].BsfInfo).Ipv6PrefixRanges)[j]).Start, 10)
-					((*(*nfProfilesStruct[i].BsfInfo).Ipv6PrefixRanges)[j]).Start = context.Ipv6IntToIpv6String(ipv6IntStart)
+	for i := range nfProfiles {
+		convertIPv4Ranges(&nfProfiles[i])
+		convertIPv6Ranges(&nfProfiles[i])
+	}
+}
+func convertIPv4Ranges(nfProfile *models.NfProfile) {
+	if nfProfile.BsfInfo.Ipv4AddressRanges == nil {
+		return
+	}
 
-					ipv6IntEnd := new(big.Int)
-					ipv6IntEnd.SetString(((*(*nfProfilesStruct[i].BsfInfo).Ipv6PrefixRanges)[j]).End, 10)
-					((*(*nfProfilesStruct[i].BsfInfo).Ipv6PrefixRanges)[j]).End = context.Ipv6IntToIpv6String(ipv6IntEnd)
-				}
-			}
+	for j := range *nfProfile.BsfInfo.Ipv4AddressRanges {
+		rng := &(*nfProfile.BsfInfo.Ipv4AddressRanges)[j]
+
+		startInt, err := strconv.Atoi(rng.Start)
+		if err == nil {
+			rng.Start = context.Ipv4IntToIpv4String(int64(startInt))
+		} else {
+			logger.DiscoveryLog.Warnln("ipv4IntStart Atoi Error:", err)
+		}
+
+		endInt, err := strconv.Atoi(rng.End)
+		if err == nil {
+			rng.End = context.Ipv4IntToIpv4String(int64(endInt))
+		} else {
+			logger.DiscoveryLog.Warnln("ipv4IntEnd Atoi Error:", err)
 		}
 	}
-	// Build SearchResult model
-	searchResult := &models.SearchResult{
-		ValidityPeriod: 100,
-		NfInstances:    nfProfilesStruct,
+}
+func convertIPv6Ranges(nfProfile *models.NfProfile) {
+	if nfProfile.BsfInfo.Ipv6PrefixRanges == nil {
+		return
 	}
 
-	return searchResult, nil
+	for j := range *nfProfile.BsfInfo.Ipv6PrefixRanges {
+		rng := &(*nfProfile.BsfInfo.Ipv6PrefixRanges)[j]
+
+		ipv6Start := new(big.Int)
+		ipv6Start.SetString(rng.Start, 10)
+		rng.Start = context.Ipv6IntToIpv6String(ipv6Start)
+
+		ipv6End := new(big.Int)
+		ipv6End.SetString(rng.End, 10)
+		rng.End = context.Ipv6IntToIpv6String(ipv6End)
+	}
 }
 
 func buildFilter(queryParameters url.Values) bson.M {
