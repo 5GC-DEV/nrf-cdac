@@ -510,9 +510,9 @@ func GetNofificationUri(nfProfile models.NfProfile) []string {
 	setUriListByFilter(buildGuamiCond(nfProfile), &uriList)
 	setUriListByFilter(buildNetworkSliceCond(nfProfile), &uriList)
 	setUriListByFilter(buildNfGroupCond(nfProfile), &uriList)
-
 	return uriList
 }
+
 func buildNfTypeCond(nfProfile models.NfProfile) bson.M {
 	return bson.M{
 		"subscrCond": bson.M{
@@ -520,6 +520,7 @@ func buildNfTypeCond(nfProfile models.NfProfile) bson.M {
 		},
 	}
 }
+
 func buildNfInstanceIDCond(nfProfile models.NfProfile) bson.M {
 	return bson.M{
 		"subscrCond": bson.M{
@@ -527,6 +528,7 @@ func buildNfInstanceIDCond(nfProfile models.NfProfile) bson.M {
 		},
 	}
 }
+
 func buildServiceNameCond(nfProfile models.NfProfile) bson.M {
 	if nfProfile.NfServices == nil {
 		return nil
@@ -543,6 +545,7 @@ func buildServiceNameCond(nfProfile models.NfProfile) bson.M {
 		},
 	}
 }
+
 func buildAmfCond(nfProfile models.NfProfile) bson.M {
 	if nfProfile.AmfInfo == nil {
 		return nil
@@ -555,6 +558,7 @@ func buildAmfCond(nfProfile models.NfProfile) bson.M {
 		},
 	}
 }
+
 func buildGuamiCond(nfProfile models.NfProfile) bson.M {
 	if nfProfile.AmfInfo == nil || nfProfile.AmfInfo.GuamiList == nil {
 		return nil
@@ -571,6 +575,7 @@ func buildGuamiCond(nfProfile models.NfProfile) bson.M {
 
 	return bson.M{"$or": orArray}
 }
+
 func buildNetworkSliceCond(nfProfile models.NfProfile) bson.M {
 	if nfProfile.SNssais == nil {
 		return nil
@@ -605,6 +610,7 @@ func buildNetworkSliceCond(nfProfile models.NfProfile) bson.M {
 		},
 	}
 }
+
 func buildNfGroupCond(nfProfile models.NfProfile) bson.M {
 	groupID := ""
 
@@ -626,6 +632,7 @@ func buildNfGroupCond(nfProfile models.NfProfile) bson.M {
 		},
 	}
 }
+
 func marshalToBson(v interface{}) bson.M {
 	tmp, err := json.Marshal(v)
 	if err != nil {
