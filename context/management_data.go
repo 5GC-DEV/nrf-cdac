@@ -133,9 +133,9 @@ func nnrfNFManagementOption(nf *models.NfProfile, src models.NfProfile) {
 	copyPcfInfo(nf, src)
 	copyBsfInfo(nf, src)
 	copyChfInfo(nf, src)
-
 	copyRemainingFields(nf, src)
 }
+
 func copySlice[T any](src []T) []T {
 	if src == nil {
 		return nil
@@ -153,6 +153,7 @@ func copyPtrSlice[T any](src *[]T) *[]T {
 	copy(dst, *src)
 	return &dst
 }
+
 func copyBasicSlices(nf *models.NfProfile, src models.NfProfile) {
 	nf.SNssais = copyPtrSlice(src.SNssais)
 	nf.NsiList = copySlice(src.NsiList)
@@ -162,6 +163,7 @@ func copyBasicSlices(nf *models.NfProfile, src models.NfProfile) {
 	nf.AllowedNssais = copyPtrSlice(src.AllowedNssais)
 	nf.NfServices = copyPtrSlice(src.NfServices)
 }
+
 func copyNumericFields(nf *models.NfProfile, src models.NfProfile) {
 	if src.Priority > 0 && src.Priority <= 65535 {
 		nf.Priority = src.Priority
@@ -173,11 +175,13 @@ func copyNumericFields(nf *models.NfProfile, src models.NfProfile) {
 		nf.Load = src.Load
 	}
 }
+
 func copySimpleFields(nf *models.NfProfile, src models.NfProfile) {
 	if src.Locality != "" {
 		nf.Locality = src.Locality
 	}
 }
+
 func copyUdrInfo(nf *models.NfProfile, src models.NfProfile) {
 	if src.UdrInfo == nil {
 		return
@@ -186,6 +190,7 @@ func copyUdrInfo(nf *models.NfProfile, src models.NfProfile) {
 	a := *src.UdrInfo
 	nf.UdrInfo = &a
 }
+
 func copyUdmInfo(nf *models.NfProfile, src models.NfProfile) {
 	if src.UdmInfo == nil {
 		return
@@ -193,6 +198,7 @@ func copyUdmInfo(nf *models.NfProfile, src models.NfProfile) {
 	a := *src.UdmInfo
 	nf.UdmInfo = &a
 }
+
 func copyAusfInfo(nf *models.NfProfile, src models.NfProfile) {
 	if src.AusfInfo == nil {
 		return
@@ -200,6 +206,7 @@ func copyAusfInfo(nf *models.NfProfile, src models.NfProfile) {
 	a := *src.AusfInfo
 	nf.AusfInfo = &a
 }
+
 func copyAmfInfo(nf *models.NfProfile, src models.NfProfile) {
 	if src.AmfInfo == nil {
 		return
@@ -207,6 +214,7 @@ func copyAmfInfo(nf *models.NfProfile, src models.NfProfile) {
 	a := *src.AmfInfo
 	nf.AmfInfo = &a
 }
+
 func copySmfInfo(nf *models.NfProfile, src models.NfProfile) {
 	if src.SmfInfo == nil {
 		return
@@ -214,6 +222,7 @@ func copySmfInfo(nf *models.NfProfile, src models.NfProfile) {
 	a := *src.SmfInfo
 	nf.SmfInfo = &a
 }
+
 func copyUpfInfo(nf *models.NfProfile, src models.NfProfile) {
 	if src.UpfInfo == nil {
 		return
@@ -221,6 +230,7 @@ func copyUpfInfo(nf *models.NfProfile, src models.NfProfile) {
 	a := *src.UpfInfo
 	nf.UpfInfo = &a
 }
+
 func copyPcfInfo(nf *models.NfProfile, src models.NfProfile) {
 	if src.PcfInfo == nil {
 		return
@@ -228,6 +238,7 @@ func copyPcfInfo(nf *models.NfProfile, src models.NfProfile) {
 	a := *src.PcfInfo
 	nf.PcfInfo = &a
 }
+
 func copyBsfInfo(nf *models.NfProfile, src models.NfProfile) {
 	if src.BsfInfo == nil {
 		return
@@ -255,6 +266,7 @@ func copyBsfInfo(nf *models.NfProfile, src models.NfProfile) {
 
 	nf.BsfInfo = &a
 }
+
 func copyChfInfo(nf *models.NfProfile, src models.NfProfile) {
 	if src.ChfInfo == nil {
 		return
@@ -262,6 +274,7 @@ func copyChfInfo(nf *models.NfProfile, src models.NfProfile) {
 	a := *src.ChfInfo
 	nf.ChfInfo = &a
 }
+
 func copyRemainingFields(nf *models.NfProfile, src models.NfProfile) {
 	nf.NrfInfo = src.NrfInfo
 	nf.RecoveryTime = src.RecoveryTime
