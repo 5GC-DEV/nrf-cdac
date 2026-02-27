@@ -442,6 +442,7 @@ func updateNFInstanceProcedure(nfInstanceID string, patchJSON []byte) (response 
 		logger.ManagementLog.Errorf("nf profile [%s] update failed: %v", nfProfiles[0].NfType, putErr)
 		return nil, fmt.Errorf("NF profile update is failed: %v", putErr)
 	}
+
 	logger.ManagementLog.Infof("nf profile [%s] update success", nfProfiles[0].NfType)
 	return nf, nil
 }
@@ -450,6 +451,7 @@ func GetNFInstanceProcedure(nfInstanceID string) (response map[string]interface{
 	collName := "NfProfile"
 	filter := bson.M{"nfInstanceId": nfInstanceID}
 	response, _ = dbadapter.DBClient.RestfulAPIGetOne(collName, filter)
+
 	return response
 }
 
@@ -460,36 +462,43 @@ func NFRegisterProcedure(nfProfile models.NfProfile) (
 ) {
 	logger.ManagementLog.Debugln("[NRF] In NFRegisterProcedure")
 
-	// ---- Validation ----
-	nf, problemDetails := validateNFProfile(nfProfile)
-	if problemDetails != nil {
+	var nf models.NfProfile
+	err := nrf_context.NnrfNFManagementDataModel(&nf, nfProfile)
+	if err != nil {
+		logger.ManagementLog.Errorln("NfProfile Validation failed.", err)
+		str1 := fmt.Sprint(nfProfile.HeartBeatTimer)
+		problemDetails = &models.ProblemDetails{
+			Title:  nfProfile.NfInstanceId,
+			Status: http.StatusBadRequest,
+			Detail: str1,
+		}
 		return nil, nil, problemDetails
 	}
 
 	locationHeaderValue := nrf_context.SetLocationHeader(nfProfile)
 
-	// ---- Marshal to BSON ----
 	tmp, err := json.Marshal(nf)
 	if err != nil {
 		logger.ManagementLog.Errorln("Marshal error in NFRegisterProcedure: ", err)
 	}
 
 	putData := bson.M{}
-	if err = json.Unmarshal(tmp, &putData); err != nil {
+	err = json.Unmarshal(tmp, &putData)
+	if err != nil {
 		logger.ManagementLog.Errorln("Unmarshal error in NFRegisterProcedure: ", err)
 	}
 
 	collName := "NfProfile"
-	filter := bson.M{"nfInstanceId": nf.NfInstanceId}
+	nfInstanceId := nf.NfInstanceId
+	filter := bson.M{"nfInstanceId": nfInstanceId}
 
-	// ---- Expiry Handling ----
 	if !factory.NrfConfig.Configuration.NfProfileExpiryEnable {
 		NFDeleteAll(string(nf.NfType))
 	} else {
-		expireAt := time.Now().Local().
-			Add(time.Second * time.Duration(nf.HeartBeatTimer*3))
-
-		putData["expireAt"] = expireAt
+		timein := time.Now().Local().Add(
+			time.Second * time.Duration(nf.HeartBeatTimer*3),
+		)
+		putData["expireAt"] = timein
 
 		nfs, _ := dbadapter.DBClient.RestfulAPIGetOne(collName, filter)
 		if len(nfs) == 0 {
@@ -497,24 +506,27 @@ func NFRegisterProcedure(nfProfile models.NfProfile) (
 		}
 	}
 
-	// ---- Save ----
-	inserted, _ := dbadapter.DBClient.RestfulAPIPutOne(collName, filter, putData)
+	ok, _ := dbadapter.DBClient.RestfulAPIPutOne(collName, filter, putData)
 
-	var event models.NotificationEventType
-	if inserted {
-		logger.ManagementLog.Infoln("RestfulAPIPutOne True Insert")
-		event = models.NotificationEventType_PROFILE_CHANGED
-	} else {
-		logger.ManagementLog.Infoln("Create NF Profile ", nfProfile.NfType)
-		event = models.NotificationEventType_REGISTERED
+	// 🔥 Only this call replaces the original update block
+	if ok {
+		return handleUpdateNFProfile(nf, locationHeaderValue, putData)
 	}
 
-	// ---- Notify ----
-	if problemDetails = notifyNF(event, locationHeaderValue, nf); problemDetails != nil {
-		return nil, nil, problemDetails
+	// ---- Create NF Profile case (unchanged) ----
+	logger.ManagementLog.Infoln("Create NF Profile ", nfProfile.NfType)
+
+	uriList := nrf_context.GetNofificationUri(nf)
+	Notification_event := models.NotificationEventType_REGISTERED
+	nfInstanceUri := locationHeaderValue
+
+	for _, uri := range uriList {
+		problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
+		if problemDetails != nil {
+			return nil, nil, problemDetails
+		}
 	}
 
-	// ---- Header ----
 	header = make(http.Header)
 	header.Add("Location", locationHeaderValue)
 	logger.ManagementLog.Infoln("Location header: ", locationHeaderValue)
@@ -522,33 +534,36 @@ func NFRegisterProcedure(nfProfile models.NfProfile) (
 	return header, putData, nil
 }
 
-func validateNFProfile(nfProfile models.NfProfile) (models.NfProfile, *models.ProblemDetails) {
-	var nf models.NfProfile
-
-	if err := nrf_context.NnrfNFManagementDataModel(&nf, nfProfile); err != nil {
-		logger.ManagementLog.Errorln("NfProfile Validation failed.", err)
-		return nf, &models.ProblemDetails{
-			Title:  nfProfile.NfInstanceId,
-			Status: http.StatusBadRequest,
-			Detail: fmt.Sprint(nfProfile.HeartBeatTimer),
-		}
-	}
-
-	return nf, nil
-}
-
-func notifyNF(
-	event models.NotificationEventType,
-	nfInstanceUri string,
+func handleUpdateNFProfile(
 	nf models.NfProfile,
-) *models.ProblemDetails {
+	locationHeaderValue string,
+	putData bson.M,
+) (
+	header http.Header,
+	response bson.M,
+	problemDetails *models.ProblemDetails,
+) {
+	logger.ManagementLog.Infoln("RestfulAPIPutOne True Insert")
+
 	uriList := nrf_context.GetNofificationUri(nf)
+	Notification_event := models.NotificationEventType_PROFILE_CHANGED
+	nfInstanceUri := locationHeaderValue
+
 	for _, uri := range uriList {
-		if problem := SendNFStatusNotify(event, nfInstanceUri, uri); problem != nil {
-			return problem
+		problemDetails = SendNFStatusNotify(
+			Notification_event,
+			nfInstanceUri,
+			uri,
+		)
+		if problemDetails != nil {
+			return nil, nil, problemDetails
 		}
 	}
-	return nil
+
+	header = make(http.Header)
+	header.Add("Location", locationHeaderValue)
+
+	return header, putData, nil
 }
 
 func GetNfTypeBySubscriptionID(subscriptionID string) (nfType string) {
