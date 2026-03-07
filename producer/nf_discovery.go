@@ -154,7 +154,6 @@ func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchRe
 }
 
 func buildFilter(queryParameters url.Values) bson.M {
-
 	filter := bson.M{
 		"$and": []bson.M{},
 	}
@@ -197,6 +196,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 
 	return filter
 }
+
 func handleTargetNfType(queryParameters url.Values, filter bson.M) {
 	// [Query-1] target-nf-type
 	targetNfType := queryParameters["target-nf-type"][0]
@@ -207,6 +207,7 @@ func handleTargetNfType(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), targetNfTypeFilter)
 	}
 }
+
 func handleRequesterNfType(queryParameters url.Values, filter bson.M) {
 	// [Query-2] request-nf-type
 	requesterNfType := queryParameters["requester-nf-type"][0]
@@ -222,6 +223,7 @@ func handleRequesterNfType(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), requesterNfTypeFilter)
 	}
 }
+
 func handleServiceNames(queryParameters url.Values, filter bson.M) {
 	// [Query-3] service-names
 	// TODO: return exist service name
@@ -248,6 +250,7 @@ func handleServiceNames(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), serviceNamesFilter)
 	}
 }
+
 func handleRequesterNfInstanceFqdn(queryParameters url.Values, filter bson.M) {
 	// [Query-4] requester-nfinstance-fqdn
 	if queryParameters["requester-nf-instance-fqdn"] != nil {
@@ -276,6 +279,7 @@ func handleRequesterNfInstanceFqdn(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), requesterNfinstanceFqdnFilter)
 	}
 }
+
 func handleTargetPlmnList(queryParameters url.Values, filter bson.M) {
 	// [Query-5] target-plmn-list [C] = Mcc + Mnc
 	// Mcc: Pattern: '^[0-9]{3}$'
@@ -323,6 +327,7 @@ func handleTargetPlmnList(queryParameters url.Values, filter bson.M) {
 	// TODO
 	// }
 }
+
 func handleTargetNfInstanceID(queryParameters url.Values, filter bson.M) {
 	// [Query-7] target-nf-instance-id
 	if queryParameters["target-nf-instance-id"] != nil {
@@ -333,6 +338,7 @@ func handleTargetNfInstanceID(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), nfInstanceIdFilter)
 	}
 }
+
 func handleTargetNfFqdn(queryParameters url.Values, filter bson.M) {
 	// [Query-8] target-nf-fqdn
 	if queryParameters["target-nf-fqdn"] != nil {
@@ -343,6 +349,7 @@ func handleTargetNfFqdn(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), fqdnFilter)
 	}
 }
+
 func handleSnssais(queryParameters url.Values, filter bson.M) {
 	// [Query-9] hnrf-uri
 	// for Roaming
@@ -393,6 +400,7 @@ func handleSnssais(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), snssaisFilter)
 	}
 }
+
 func handleNsiList(queryParameters url.Values, filter bson.M) {
 	// [Query-11] nsi-list
 	if queryParameters["nsi-list"] != nil {
@@ -410,6 +418,7 @@ func handleNsiList(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), nsiListFilter)
 	}
 }
+
 func handleDnn(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-12] dnn
 	if queryParameters["dnn"] != nil {
@@ -470,6 +479,7 @@ func handleDnn(queryParameters url.Values, filter bson.M, targetNfType string) {
 		filter["$and"] = append(filter["$and"].([]bson.M), dnnFilter)
 	}
 }
+
 func handleSmfServingArea(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-13] smf-serving-area
 	if queryParameters["smf-serving-area"] != nil {
@@ -492,6 +502,7 @@ func handleSmfServingArea(queryParameters url.Values, filter bson.M, targetNfTyp
 		filter["$and"] = append(filter["$and"].([]bson.M), smfServingAreaFilter)
 	}
 }
+
 func handleTai(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-14] tai
 	if queryParameters["tai"] != nil {
@@ -531,6 +542,7 @@ func handleTai(queryParameters url.Values, filter bson.M, targetNfType string) {
 		filter["$and"] = append(filter["$and"].([]bson.M), taiFilter)
 	}
 }
+
 func handleAmfRegionID(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-15] amf-region-id
 	if queryParameters["amf-region-id"] != nil {
@@ -543,6 +555,7 @@ func handleAmfRegionID(queryParameters url.Values, filter bson.M, targetNfType s
 		}
 	}
 }
+
 func handleAmfSetID(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-16] amf-set-id
 	if queryParameters["amf-set-id"] != nil {
@@ -555,6 +568,7 @@ func handleAmfSetID(queryParameters url.Values, filter bson.M, targetNfType stri
 		}
 	}
 }
+
 func handleGuami(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// Query-17: guami
 	// TODO: NOTE[1]
@@ -589,6 +603,7 @@ func handleGuami(queryParameters url.Values, filter bson.M, targetNfType string)
 		}
 	}
 }
+
 func handleSupi(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-18] supi
 	var supi string
@@ -727,6 +742,7 @@ func handleSupi(queryParameters url.Values, filter bson.M, targetNfType string) 
 		filter["$and"] = append(filter["$and"].([]bson.M), supiFilter)
 	}
 }
+
 func handleUeIpv4(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-19] ue-ipv4-address
 	if queryParameters["ue-ipv4-address"] != nil {
@@ -759,6 +775,7 @@ func handleUeIpv4(queryParameters url.Values, filter bson.M, targetNfType string
 		filter["$and"] = append(filter["$and"].([]bson.M), ueIpv4AddressFilter)
 	}
 }
+
 func handleIpDomain(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-20] ip-domain
 	if queryParameters["ip-domain"] != nil {
@@ -781,6 +798,7 @@ func handleIpDomain(queryParameters url.Values, filter bson.M, targetNfType stri
 		filter["$and"] = append(filter["$and"].([]bson.M), ipDomainFilter)
 	}
 }
+
 func handleUeIpv6Prefix(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-21] ue-ipv6-prefix
 	if queryParameters["ue-ipv6-prefix"] != nil {
@@ -813,6 +831,7 @@ func handleUeIpv6Prefix(queryParameters url.Values, filter bson.M, targetNfType 
 		filter["$and"] = append(filter["$and"].([]bson.M), ueIpv6PrefixFilter)
 	}
 }
+
 func handlePgwInd(queryParameters url.Values, filter bson.M) {
 	// [Query-22] pgw-ind
 	if queryParameters["pgw-ind"] != nil {
@@ -827,6 +846,7 @@ func handlePgwInd(queryParameters url.Values, filter bson.M) {
 		}
 	}
 }
+
 func handlePgw(queryParameters url.Values, filter bson.M) {
 	// [Query-23] pgw
 	if queryParameters["pgw"] != nil {
@@ -837,6 +857,7 @@ func handlePgw(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), pgwFilter)
 	}
 }
+
 func handleGpsi(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-24] gpsi
 	if queryParameters["gpsi"] != nil {
@@ -930,6 +951,7 @@ func handleGpsi(queryParameters url.Values, filter bson.M, targetNfType string) 
 		filter["$and"] = append(filter["$and"].([]bson.M), gpsiFilter)
 	}
 }
+
 func handleExternalGroupIdentity(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-25] external-group-identity
 	if queryParameters["external-group-identity"] != nil {
@@ -1002,6 +1024,7 @@ func handleExternalGroupIdentity(queryParameters url.Values, filter bson.M, targ
 		filter["$and"] = append(filter["$and"].([]bson.M), externalGroupIdentityFilter)
 	}
 }
+
 func handleDataSet(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-26] data-set
 	if queryParameters["data-set"] != nil {
@@ -1024,6 +1047,7 @@ func handleDataSet(queryParameters url.Values, filter bson.M, targetNfType strin
 		filter["$and"] = append(filter["$and"].([]bson.M), dataSetFilter)
 	}
 }
+
 func handleRoutingIndicator(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-27] routing-indicator
 	if queryParameters["routing-indicator"] != nil {
@@ -1060,6 +1084,7 @@ func handleRoutingIndicator(queryParameters url.Values, filter bson.M, targetNfT
 		filter["$and"] = append(filter["$and"].([]bson.M), routingIndicatorFilter)
 	}
 }
+
 func handleGroupIDList(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-28] group-id-list
 	if queryParameters["group-id-list"] != nil {
@@ -1095,6 +1120,7 @@ func handleGroupIDList(queryParameters url.Values, filter bson.M, targetNfType s
 		filter["$and"] = append(filter["$and"].([]bson.M), groupIdListFilter)
 	}
 }
+
 func handleDnaiList(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-29] dnai-list
 	if queryParameters["dnai-list"] != nil {
@@ -1124,6 +1150,7 @@ func handleDnaiList(queryParameters url.Values, filter bson.M, targetNfType stri
 		filter["$and"] = append(filter["$and"].([]bson.M), dnaiFilter)
 	}
 }
+
 func handleUpfIwkEpsInd(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-30] upf-iwk-eps-ind
 	if queryParameters["upf-iwk-eps-ind"] != nil {
@@ -1137,6 +1164,7 @@ func handleUpfIwkEpsInd(queryParameters url.Values, filter bson.M, targetNfType 
 		filter["$and"] = append(filter["$and"].([]bson.M), upfIwkEpsIndFilter)
 	}
 }
+
 func handleChfSupportedPlmn(queryParameters url.Values, filter bson.M, targetNfType string) {
 	// [Query-31] chf-supported-plmn
 	if queryParameters["chf-supported-plmn"] != nil {
@@ -1176,6 +1204,7 @@ func handleChfSupportedPlmn(queryParameters url.Values, filter bson.M, targetNfT
 		filter["$and"] = append(filter["$and"].([]bson.M), chfSupportedPlmnFilter)
 	}
 }
+
 func handlePreferredLocality(queryParameters url.Values, filter bson.M) {
 	// [Query-32]  preferred-locality
 	// TODO: if no match
@@ -1187,6 +1216,7 @@ func handlePreferredLocality(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), preferredLocalityFilter)
 	}
 }
+
 func handleAccessType(queryParameters url.Values, filter bson.M) {
 	// [Query-33] access-type
 	if queryParameters["access-type"] != nil {
@@ -1221,6 +1251,7 @@ func handleSupportedFeatures(queryParameters url.Values, filter bson.M) {
 		filter["$and"] = append(filter["$and"].([]bson.M), supportedFeaturesFilter)
 	}
 }
+
 func handleComplexQuery(queryParameters url.Values, filter bson.M) {
 	// [Query-35] complexQuery
 	if queryParameters["complexQuery"] != nil {
