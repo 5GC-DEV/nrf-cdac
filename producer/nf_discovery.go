@@ -52,7 +52,6 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 }
 
 func NFDiscoveryProcedure(queryParameters url.Values) (*models.SearchResult, *models.ProblemDetails) {
-
 	if problem := validateMandatoryParams(queryParameters); problem != nil {
 		return nil, problem
 	}
@@ -85,10 +84,9 @@ func NFDiscoveryProcedure(queryParameters url.Values) (*models.SearchResult, *mo
 
 	return searchResult, nil
 }
+
 func validateMandatoryParams(queryParameters url.Values) *models.ProblemDetails {
-
 	if queryParameters["target-nf-type"] == nil || queryParameters["requester-nf-type"] == nil {
-
 		return &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
@@ -98,8 +96,8 @@ func validateMandatoryParams(queryParameters url.Values) *models.ProblemDetails 
 
 	return nil
 }
-func validateComplexQuery(queryParameters url.Values) *models.ProblemDetails {
 
+func validateComplexQuery(queryParameters url.Values) *models.ProblemDetails {
 	if queryParameters["complexQuery"] == nil {
 		return nil
 	}
@@ -114,7 +112,6 @@ func validateComplexQuery(queryParameters url.Values) *models.ProblemDetails {
 	}
 
 	if complexQueryStruct.CNf != nil && complexQueryStruct.DNf != nil {
-
 		return &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
@@ -127,18 +124,17 @@ func validateComplexQuery(queryParameters url.Values) *models.ProblemDetails {
 
 	return nil
 }
+
 func decodeNFProfiles(nfProfilesRaw []map[string]interface{}) []models.NfProfile {
-
 	nfProfilesStruct, err := util.Decode(nfProfilesRaw, time.RFC3339)
-
 	if err != nil {
 		logger.DiscoveryLog.Warnln("NF Profile Raw decode error: ", nfProfilesStruct)
 	}
 
 	return nfProfilesStruct
 }
-func sortNFProfiles(nfProfilesRaw []map[string]interface{}) {
 
+func sortNFProfiles(nfProfilesRaw []map[string]interface{}) {
 	sort.Slice(nfProfilesRaw, func(i, j int) bool {
 		var updatedTimeVal time.Time
 		if nfProfilesRaw[i]["expireAt"] == nil {
@@ -149,8 +145,8 @@ func sortNFProfiles(nfProfilesRaw []map[string]interface{}) {
 		return nfProfilesRaw[i]["expireAt"].(primitive.DateTime).Time().Before(updatedTimeVal)
 	})
 }
-func handleBSFIpConversion(queryParameters url.Values, nfProfilesStruct []models.NfProfile) {
 
+func handleBSFIpConversion(queryParameters url.Values, nfProfilesStruct []models.NfProfile) {
 	if queryParameters["target-nf-type"][0] == "BSF" {
 		for i, nfProfile := range nfProfilesStruct {
 			if nfProfile.BsfInfo.Ipv4AddressRanges != nil {
