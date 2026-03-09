@@ -1311,7 +1311,6 @@ func complexQueryFilter(complexQueryParameter *models.ComplexQuery) bson.M {
 }
 
 func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQueryType string) bson.M {
-
 	var logicalOperator string
 
 	switch complexQueryType {
@@ -1325,7 +1324,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 		logicalOperator: []bson.M{},
 	}
 
-	var targetNfType = queryParameters["target-nf-type"].value
+	targetNfType := queryParameters["target-nf-type"].value
 
 	addTargetNfTypeFilter(queryParameters, filter, logicalOperator, targetNfType)
 	addServiceNamesFilter(queryParameters, filter, logicalOperator)
@@ -1361,6 +1360,7 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 
 	return filter
 }
+
 func addTargetNfTypeFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-1] target-nf-type
 	if targetNfType != "" {
@@ -1459,6 +1459,7 @@ func addRequesterNfInstanceFqdnFilter(queryParameters map[string]*AtomElem, filt
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), requesterNfinstanceFqdnFilter)
 	}
 }
+
 func addTargetPlmnListFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string) {
 	// [Query-5] target-plmn-list [C] = Mcc + Mnc
 	// Mcc: Pattern: '^[0-9]{3}$'
@@ -1541,8 +1542,8 @@ func addTargetNfInstanceIDFilter(queryParameters map[string]*AtomElem, filter bs
 		}
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), nfInstanceIdFilter)
 	}
-
 }
+
 func addTargetNfFqdnFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string) {
 	// [Query-8] target-nf-fqdn
 	if queryParameters["target-nf-fqdn"] != nil {
@@ -1611,6 +1612,7 @@ func addSnssaisFilter(queryParameters map[string]*AtomElem, filter bson.M, logic
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), snssaisFilter)
 	}
 }
+
 func addNsiListFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string) {
 	// [Query-11] nsi-list
 	if queryParameters["nsi-list"] != nil {
@@ -1633,6 +1635,7 @@ func addNsiListFilter(queryParameters map[string]*AtomElem, filter bson.M, logic
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), nsiListFilter)
 	}
 }
+
 func addDnnFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-12] dnn
 	if queryParameters["dnn"] != nil {
@@ -1688,6 +1691,7 @@ func addDnnFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOp
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), dnnFilter)
 	}
 }
+
 func addSmfServingAreaFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-13] smf-serving-area
 	if queryParameters["smf-serving-area"] != nil {
@@ -1710,6 +1714,7 @@ func addSmfServingAreaFilter(queryParameters map[string]*AtomElem, filter bson.M
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), smfServingAreaFilter)
 	}
 }
+
 func addTaiFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-14] tai
 	if queryParameters["tai"] != nil {
@@ -1760,6 +1765,7 @@ func addTaiFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOp
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), taiFilter)
 	}
 }
+
 func addAmfRegionFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-15] amf-region-id
 	if queryParameters["amf-region-id"] != nil {
@@ -1782,6 +1788,7 @@ func addAmfRegionFilter(queryParameters map[string]*AtomElem, filter bson.M, log
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), amfRegionIdFilter)
 	}
 }
+
 func addAmfSetIdFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-16] amf-set-id
 	if queryParameters["amf-set-id"] != nil {
@@ -1804,6 +1811,7 @@ func addAmfSetIdFilter(queryParameters map[string]*AtomElem, filter bson.M, logi
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), amfSetIdFilter)
 	}
 }
+
 func addGuamiFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// Query-17: guami
 	// TODO: NOTE[1]
@@ -1849,6 +1857,7 @@ func addGuamiFilter(queryParameters map[string]*AtomElem, filter bson.M, logical
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), guamiFilter)
 	}
 }
+
 func addSupiFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-18] supi
 	var supi string
@@ -1950,6 +1959,7 @@ func addSupiFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalO
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), supiFilter)
 	}
 }
+
 func addIpv4Filter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-19] ue-ipv4-address
 	if queryParameters["ue-ipv4-address"] != nil {
@@ -1982,6 +1992,7 @@ func addIpv4Filter(queryParameters map[string]*AtomElem, filter bson.M, logicalO
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), ueIpv4AddressFilter)
 	}
 }
+
 func addIpDomainFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-20] ip-domain
 	if queryParameters["ip-domain"] != nil {
@@ -2004,6 +2015,7 @@ func addIpDomainFilter(queryParameters map[string]*AtomElem, filter bson.M, logi
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), ipDomainFilter)
 	}
 }
+
 func addIpv6PrefixFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-21] ue-ipv6-prefix
 	if queryParameters["ue-ipv6-prefix"] != nil {
@@ -2036,6 +2048,7 @@ func addIpv6PrefixFilter(queryParameters map[string]*AtomElem, filter bson.M, lo
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), ueIpv6PrefixFilter)
 	}
 }
+
 func addPgwIndFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string) {
 	// [Query-22] pgw-ind
 	if queryParameters["pgw-ind"] != nil {
@@ -2060,6 +2073,7 @@ func addPgwIndFilter(queryParameters map[string]*AtomElem, filter bson.M, logica
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), pgwIndFilter)
 	}
 }
+
 func addPgwFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string) {
 	// [Query-23] pgw
 	if queryParameters["pgw"] != nil {
@@ -2079,6 +2093,7 @@ func addPgwFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOp
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), pgwFilter)
 	}
 }
+
 func addGpsiFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-24] gpsi
 	var supi string
@@ -2146,6 +2161,7 @@ func addGpsiFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalO
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), gpsiFilter)
 	}
 }
+
 func addExternalGroupFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-25] external-group-identity
 	if queryParameters["external-group-identity"] != nil {
@@ -2177,6 +2193,7 @@ func addExternalGroupFilter(queryParameters map[string]*AtomElem, filter bson.M,
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), externalGroupIdentityFilter)
 	}
 }
+
 func addDataSetFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-26] data-set
 	if queryParameters["data-set"] != nil {
@@ -2199,6 +2216,7 @@ func addDataSetFilter(queryParameters map[string]*AtomElem, filter bson.M, logic
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), dataSetFilter)
 	}
 }
+
 func addRoutingIndicatorFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-27] routing-indicator
 	if queryParameters["routing-indicator"] != nil {
@@ -2230,6 +2248,7 @@ func addRoutingIndicatorFilter(queryParameters map[string]*AtomElem, filter bson
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), routingIndicatorFilter)
 	}
 }
+
 func addGroupIdListFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-28] group-id-list
 	if queryParameters["group-id-list"] != nil {
@@ -2282,6 +2301,7 @@ func addGroupIdListFilter(queryParameters map[string]*AtomElem, filter bson.M, l
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), groupIdListFilter)
 	}
 }
+
 func addDnaiFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-29] dnai-list
 	if queryParameters["dnai-list"] != nil {
@@ -2318,6 +2338,7 @@ func addDnaiFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalO
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), dnaiFilter)
 	}
 }
+
 func addUpfIwkEpsFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-30] upf-iwk-eps-ind
 	if queryParameters["upf-iwk-eps-ind"] != nil {
@@ -2340,6 +2361,7 @@ func addUpfIwkEpsFilter(queryParameters map[string]*AtomElem, filter bson.M, log
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), upfIwkEpsIndFilter)
 	}
 }
+
 func addChfSupportedPlmnFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string, targetNfType string) {
 	// [Query-31] chf-supported-plmn
 	if queryParameters["chf-supported-plmn"] != nil {
@@ -2380,6 +2402,7 @@ func addChfSupportedPlmnFilter(queryParameters map[string]*AtomElem, filter bson
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), chfSupportedPlmnFilter)
 	}
 }
+
 func addPreferredLocalityFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string) {
 	// [Query-32]  preferred-locality
 	// TODO: if no match
@@ -2396,6 +2419,7 @@ func addPreferredLocalityFilter(queryParameters map[string]*AtomElem, filter bso
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), preferredLocalityFilter)
 	}
 }
+
 func addAccessTypeFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string) {
 	// [Query-33] access-type
 	if queryParameters["access-type"] != nil {
@@ -2415,6 +2439,7 @@ func addAccessTypeFilter(queryParameters map[string]*AtomElem, filter bson.M, lo
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), accessTypeFilter)
 	}
 }
+
 func addSupportedFeaturesFilter(queryParameters map[string]*AtomElem, filter bson.M, logicalOperator string) {
 	// [Query-34] supported-features
 	if queryParameters["supported-features"] != nil {
