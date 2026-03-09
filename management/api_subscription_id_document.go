@@ -24,6 +24,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
+// const ContentTypeJSON = "application/json"
 // RemoveSubscription - Deletes a subscription
 func HTTPRemoveSubscription(c *gin.Context) {
 	req := httpwrapper.NewRequest(c.Request, nil)
@@ -31,7 +32,7 @@ func HTTPRemoveSubscription(c *gin.Context) {
 
 	httpResponse := producer.HandleRemoveSubscriptionRequest(req)
 
-	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
+	responseBody, err := openapi.Serialize(httpResponse.Body, ContentTypeJSON)
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
@@ -41,7 +42,7 @@ func HTTPRemoveSubscription(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
-		c.Data(httpResponse.Status, "application/json", responseBody)
+		c.Data(httpResponse.Status, ContentTypeJSON, responseBody)
 	}
 }
 
@@ -65,7 +66,7 @@ func HTTPUpdateSubscription(c *gin.Context) {
 	req.Body = requestBody
 
 	httpResponse := producer.HandleUpdateSubscriptionRequest(req)
-	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
+	responseBody, err := openapi.Serialize(httpResponse.Body, ContentTypeJSON)
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
@@ -75,6 +76,6 @@ func HTTPUpdateSubscription(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
-		c.Data(httpResponse.Status, "application/json", responseBody)
+		c.Data(httpResponse.Status, ContentTypeJSON, responseBody)
 	}
 }
