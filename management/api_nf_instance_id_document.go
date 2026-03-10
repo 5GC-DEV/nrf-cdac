@@ -24,6 +24,8 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
+const ContentTypeJSON = "application/json"
+
 // HTTPDeregisterNFInstance - Deregisters a given NF Instance
 func HTTPDeregisterNFInstance(c *gin.Context) {
 	// parse nfInstanceId
@@ -33,7 +35,7 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 
 	httpResponse := producer.HandleNFDeregisterRequest(req)
 
-	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
+	responseBody, err := openapi.Serialize(httpResponse.Body, ContentTypeJSON)
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
@@ -43,7 +45,7 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
-		c.Data(httpResponse.Status, "application/json", responseBody)
+		c.Data(httpResponse.Status, ContentTypeJSON, responseBody)
 	}
 }
 
@@ -54,7 +56,7 @@ func HTTPGetNFInstance(c *gin.Context) {
 
 	httpResponse := producer.HandleGetNFInstanceRequest(req)
 
-	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
+	responseBody, err := openapi.Serialize(httpResponse.Body, ContentTypeJSON)
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
@@ -64,7 +66,7 @@ func HTTPGetNFInstance(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
-		c.Data(httpResponse.Status, "application/json", responseBody)
+		c.Data(httpResponse.Status, ContentTypeJSON, responseBody)
 	}
 }
 
@@ -87,7 +89,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 	}
 
 	// step 2: convert requestBody to openapi models
-	err = openapi.Deserialize(&nfprofile, requestBody, "application/json")
+	err = openapi.Deserialize(&nfprofile, requestBody, ContentTypeJSON)
 	if err != nil {
 		problemDetail := "[Request Body] " + err.Error()
 		rsp := models.ProblemDetails{
@@ -110,7 +112,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 		c.Header(key, val[0])
 	}
 
-	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
+	responseBody, err := openapi.Serialize(httpResponse.Body, ContentTypeJSON)
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
@@ -120,7 +122,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
-		c.Data(httpResponse.Status, "application/json", responseBody)
+		c.Data(httpResponse.Status, ContentTypeJSON, responseBody)
 	}
 }
 
@@ -146,7 +148,7 @@ func HTTPUpdateNFInstance(c *gin.Context) {
 
 	httpResponse := producer.HandleUpdateNFInstanceRequest(req)
 
-	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
+	responseBody, err := openapi.Serialize(httpResponse.Body, ContentTypeJSON)
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
@@ -156,6 +158,6 @@ func HTTPUpdateNFInstance(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
-		c.Data(httpResponse.Status, "application/json", responseBody)
+		c.Data(httpResponse.Status, ContentTypeJSON, responseBody)
 	}
 }

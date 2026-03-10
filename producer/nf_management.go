@@ -455,10 +455,13 @@ func GetNFInstanceProcedure(nfInstanceID string) (response map[string]interface{
 	return response
 }
 
-func NFRegisterProcedure(nfProfile models.NfProfile) (header http.Header, response bson.M,
+func NFRegisterProcedure(nfProfile models.NfProfile) (
+	header http.Header,
+	response bson.M,
 	problemDetails *models.ProblemDetails,
 ) {
 	logger.ManagementLog.Debugln("[NRF] In NFRegisterProcedure")
+
 	var nf models.NfProfile
 	err := nrf_context.NnrfNFManagementDataModel(&nf, nfProfile)
 	if err != nil {
@@ -472,76 +475,95 @@ func NFRegisterProcedure(nfProfile models.NfProfile) (header http.Header, respon
 		return nil, nil, problemDetails
 	}
 
-	// make location header
 	locationHeaderValue := nrf_context.SetLocationHeader(nfProfile)
 
-	// Marshal nf to bson
 	tmp, err := json.Marshal(nf)
 	if err != nil {
 		logger.ManagementLog.Errorln("Marshal error in NFRegisterProcedure: ", err)
 	}
+
 	putData := bson.M{}
 	err = json.Unmarshal(tmp, &putData)
 	if err != nil {
 		logger.ManagementLog.Errorln("Unmarshal error in NFRegisterProcedure: ", err)
 	}
 
-	// set db info
 	collName := "NfProfile"
 	nfInstanceId := nf.NfInstanceId
 	filter := bson.M{"nfInstanceId": nfInstanceId}
 
-	// fallback to older approach
 	if !factory.NrfConfig.Configuration.NfProfileExpiryEnable {
 		NFDeleteAll(string(nf.NfType))
 	} else {
-		timein := time.Now().Local().Add(time.Second * time.Duration(nf.HeartBeatTimer*3))
+		timein := time.Now().Local().Add(
+			time.Second * time.Duration(nf.HeartBeatTimer*3),
+		)
 		putData["expireAt"] = timein
+
 		nfs, _ := dbadapter.DBClient.RestfulAPIGetOne(collName, filter)
 		if len(nfs) == 0 {
 			putData["createdAt"] = time.Now()
 		}
 	}
 
-	// Update NF Profile case
-	if ok, _ := dbadapter.DBClient.RestfulAPIPutOne(collName, filter, putData); ok { // true insert
-		logger.ManagementLog.Infoln("RestfulAPIPutOne True Insert")
-		uriList := nrf_context.GetNofificationUri(nf)
+	ok, _ := dbadapter.DBClient.RestfulAPIPutOne(collName, filter, putData)
 
-		// set info for NotificationData
-		Notification_event := models.NotificationEventType_PROFILE_CHANGED
-		nfInstanceUri := locationHeaderValue
-
-		// receive the rsp from handler
-		for _, uri := range uriList {
-			problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
-			if problemDetails != nil {
-				return nil, nil, problemDetails
-			}
-		}
-
-		header = make(http.Header)
-		header.Add("Location", locationHeaderValue)
-		return header, putData, nil
-	} else { // Create NF Profile case
-		logger.ManagementLog.Infoln("Create NF Profile ", nfProfile.NfType)
-		uriList := nrf_context.GetNofificationUri(nf)
-		// set info for NotificationData
-		Notification_event := models.NotificationEventType_REGISTERED
-		nfInstanceUri := locationHeaderValue
-
-		for _, uri := range uriList {
-			problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
-			if problemDetails != nil {
-				return nil, nil, problemDetails
-			}
-		}
-
-		header = make(http.Header)
-		header.Add("Location", locationHeaderValue)
-		logger.ManagementLog.Infoln("Location header: ", locationHeaderValue)
-		return header, putData, nil
+	// Only this call replaces the original update block
+	if ok {
+		return handleUpdateNFProfile(nf, locationHeaderValue, putData)
 	}
+
+	// ---- Create NF Profile case (unchanged) ----
+	logger.ManagementLog.Infoln("Create NF Profile ", nfProfile.NfType)
+
+	uriList := nrf_context.GetNofificationUri(nf)
+	Notification_event := models.NotificationEventType_REGISTERED
+	nfInstanceUri := locationHeaderValue
+
+	for _, uri := range uriList {
+		problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
+		if problemDetails != nil {
+			return nil, nil, problemDetails
+		}
+	}
+
+	header = make(http.Header)
+	header.Add("Location", locationHeaderValue)
+	logger.ManagementLog.Infoln("Location header: ", locationHeaderValue)
+
+	return header, putData, nil
+}
+
+func handleUpdateNFProfile(
+	nf models.NfProfile,
+	locationHeaderValue string,
+	putData bson.M,
+) (
+	header http.Header,
+	response bson.M,
+	problemDetails *models.ProblemDetails,
+) {
+	logger.ManagementLog.Infoln("RestfulAPIPutOne True Insert")
+
+	uriList := nrf_context.GetNofificationUri(nf)
+	Notification_event := models.NotificationEventType_PROFILE_CHANGED
+	nfInstanceUri := locationHeaderValue
+
+	for _, uri := range uriList {
+		problemDetails = SendNFStatusNotify(
+			Notification_event,
+			nfInstanceUri,
+			uri,
+		)
+		if problemDetails != nil {
+			return nil, nil, problemDetails
+		}
+	}
+
+	header = make(http.Header)
+	header.Add("Location", locationHeaderValue)
+
+	return header, putData, nil
 }
 
 func GetNfTypeBySubscriptionID(subscriptionID string) (nfType string) {
