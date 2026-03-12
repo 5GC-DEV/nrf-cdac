@@ -72,6 +72,8 @@ func Index(c *gin.Context) {
 	c.String(http.StatusOK, "Hello World!")
 }
 
+const nfInstancePath = "/nf-instances/:nfInstanceID"
+
 var routes = Routes{
 	{
 		"Index",
@@ -83,28 +85,28 @@ var routes = Routes{
 	{
 		"DeregisterNFInstance",
 		strings.ToUpper("Delete"),
-		"/nf-instances/:nfInstanceID",
+		nfInstancePath,
 		HTTPDeregisterNFInstance,
 	},
 
 	{
 		"GetNFInstance",
 		strings.ToUpper("Get"),
-		"/nf-instances/:nfInstanceID",
+		nfInstancePath,
 		HTTPGetNFInstance,
 	},
 
 	{
 		"RegisterNFInstance",
 		strings.ToUpper("Put"),
-		"/nf-instances/:nfInstanceID",
+		nfInstancePath,
 		HTTPRegisterNFInstance,
 	},
 
 	{
 		"UpdateNFInstance",
 		strings.ToUpper("Patch"),
-		"/nf-instances/:nfInstanceID",
+		nfInstancePath,
 		HTTPUpdateNFInstance,
 	},
 
