@@ -458,32 +458,40 @@ func GetNFInstanceProcedure(nfInstanceID string) (response map[string]interface{
 func NFRegisterProcedure(nfProfile models.NfProfile) (header http.Header, response bson.M,
 	problemDetails *models.ProblemDetails,
 ) {
-	logger.ManagementLog.Debugln("[NRF] In NFRegisterProcedure")
+	logger.ManagementLog.Debugln("[NRF] Enter NFRegisterProcedure")
+
 	var nf models.NfProfile
 	err := nrf_context.NnrfNFManagementDataModel(&nf, nfProfile)
 	if err != nil {
-		logger.ManagementLog.Errorln("NfProfile Validation failed.", err)
+		logger.ManagementLog.Errorln("[NRF] NfProfile validation failed:", err)
+
 		str1 := fmt.Sprint(nfProfile.HeartBeatTimer)
 		problemDetails = &models.ProblemDetails{
 			Title:  nfProfile.NfInstanceId,
 			Status: http.StatusBadRequest,
 			Detail: str1,
 		}
+
+		logger.ManagementLog.Errorln("[NRF] Returning 400 due to validation failure")
 		return nil, nil, problemDetails
 	}
 
+	logger.ManagementLog.Debugln("[NRF] NF profile validation success for:", nfProfile.NfInstanceId)
+
 	// make location header
 	locationHeaderValue := nrf_context.SetLocationHeader(nfProfile)
+	logger.ManagementLog.Debugln("[NRF] Location header generated:", locationHeaderValue)
 
 	// Marshal nf to bson
 	tmp, err := json.Marshal(nf)
 	if err != nil {
-		logger.ManagementLog.Errorln("Marshal error in NFRegisterProcedure: ", err)
+		logger.ManagementLog.Errorln("[NRF] Marshal error in NFRegisterProcedure:", err)
 	}
+
 	putData := bson.M{}
 	err = json.Unmarshal(tmp, &putData)
 	if err != nil {
-		logger.ManagementLog.Errorln("Unmarshal error in NFRegisterProcedure: ", err)
+		logger.ManagementLog.Errorln("[NRF] Unmarshal error in NFRegisterProcedure:", err)
 	}
 
 	// set db info
@@ -491,59 +499,114 @@ func NFRegisterProcedure(nfProfile models.NfProfile) (header http.Header, respon
 	nfInstanceId := nf.NfInstanceId
 	filter := bson.M{"nfInstanceId": nfInstanceId}
 
+	logger.ManagementLog.Debugln("[NRF] DB filter prepared for nfInstanceId:", nfInstanceId)
+
 	// fallback to older approach
 	if !factory.NrfConfig.Configuration.NfProfileExpiryEnable {
+		logger.ManagementLog.Warnln("[NRF] Expiry disabled. Calling NFDeleteAll for type:", nf.NfType)
 		NFDeleteAll(string(nf.NfType))
 	} else {
+
 		timein := time.Now().Local().Add(time.Second * time.Duration(nf.HeartBeatTimer*3))
 		putData["expireAt"] = timein
-		nfs, _ := dbadapter.DBClient.RestfulAPIGetOne(collName, filter)
+
+		logger.ManagementLog.Debugln("[NRF] Expiry enabled. expireAt set to:", timein)
+
+		nfs, err := dbadapter.DBClient.RestfulAPIGetOne(collName, filter)
+		if err != nil {
+			logger.ManagementLog.Errorln("[NRF] DB RestfulAPIGetOne error:", err)
+		}
+
 		if len(nfs) == 0 {
 			putData["createdAt"] = time.Now()
+			logger.ManagementLog.Debugln("[NRF] New NF profile detected. createdAt added")
 		}
 	}
 
-	// Update NF Profile case
-	if ok, _ := dbadapter.DBClient.RestfulAPIPutOne(collName, filter, putData); ok { // true insert
-		logger.ManagementLog.Infoln("RestfulAPIPutOne True Insert")
-		uriList := nrf_context.GetNofificationUri(nf)
+	logger.ManagementLog.Debugln("[NRF] Calling handleNFProfileUpdateOrCreate")
 
-		// set info for NotificationData
+	return handleNFProfileUpdateOrCreate(nf, nfProfile, locationHeaderValue, collName, filter, putData)
+}
+
+func handleNFProfileUpdateOrCreate(
+	nf models.NfProfile,
+	nfProfile models.NfProfile,
+	locationHeaderValue string,
+	collName string,
+	filter bson.M,
+	putData bson.M,
+) (http.Header, bson.M, *models.ProblemDetails) {
+
+	var header http.Header
+	var problemDetails *models.ProblemDetails
+
+	logger.ManagementLog.Debugln("[NRF] Enter handleNFProfileUpdateOrCreate")
+
+	ok, err := dbadapter.DBClient.RestfulAPIPutOne(collName, filter, putData)
+	if err != nil {
+		logger.ManagementLog.Errorln("[NRF] DB RestfulAPIPutOne error:", err)
+	}
+
+	if ok { // update case
+
+		logger.ManagementLog.Infoln("[NRF] NF Profile Updated:", nf.NfInstanceId)
+
+		uriList := nrf_context.GetNofificationUri(nf)
+		logger.ManagementLog.Debugln("[NRF] Notification URI list:", uriList)
+
 		Notification_event := models.NotificationEventType_PROFILE_CHANGED
 		nfInstanceUri := locationHeaderValue
 
-		// receive the rsp from handler
 		for _, uri := range uriList {
+
+			logger.ManagementLog.Debugln("[NRF] Sending PROFILE_CHANGED notification to:", uri)
+
 			problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
+
 			if problemDetails != nil {
+				logger.ManagementLog.Errorln("[NRF] Notification failed for URI:", uri, " error:", problemDetails)
 				return nil, nil, problemDetails
 			}
 		}
 
 		header = make(http.Header)
 		header.Add("Location", locationHeaderValue)
+
+		logger.ManagementLog.Infoln("[NRF] Returning HTTP 200 for NF Update")
+
 		return header, putData, nil
-	} else { // Create NF Profile case
-		logger.ManagementLog.Infoln("Create NF Profile ", nfProfile.NfType)
+
+	} else { // create case
+
+		logger.ManagementLog.Infoln("[NRF] Creating new NF Profile:", nfProfile.NfType)
+
 		uriList := nrf_context.GetNofificationUri(nf)
-		// set info for NotificationData
+		logger.ManagementLog.Debugln("[NRF] Notification URI list:", uriList)
+
 		Notification_event := models.NotificationEventType_REGISTERED
 		nfInstanceUri := locationHeaderValue
 
 		for _, uri := range uriList {
+
+			logger.ManagementLog.Debugln("[NRF] Sending REGISTERED notification to:", uri)
+
 			problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
+
 			if problemDetails != nil {
+				logger.ManagementLog.Errorln("[NRF] Notification failed for URI:", uri, " error:", problemDetails)
 				return nil, nil, problemDetails
 			}
 		}
 
 		header = make(http.Header)
 		header.Add("Location", locationHeaderValue)
-		logger.ManagementLog.Infoln("Location header: ", locationHeaderValue)
+
+		logger.ManagementLog.Infoln("[NRF] Returning HTTP 200 for NF Create")
+		logger.ManagementLog.Infoln("[NRF] Location header:", locationHeaderValue)
+
 		return header, putData, nil
 	}
 }
-
 func GetNfTypeBySubscriptionID(subscriptionID string) (nfType string) {
 	collName := "Subscriptions"
 	filter := bson.M{"subscriptionId": subscriptionID}
