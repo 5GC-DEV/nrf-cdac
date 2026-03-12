@@ -536,7 +536,6 @@ func handleNFProfileUpdateOrCreate(
 	filter bson.M,
 	putData bson.M,
 ) (http.Header, bson.M, *models.ProblemDetails) {
-
 	var header http.Header
 	var problemDetails *models.ProblemDetails
 
@@ -607,6 +606,7 @@ func handleNFProfileUpdateOrCreate(
 		return header, putData, nil
 	}
 }
+
 func GetNfTypeBySubscriptionID(subscriptionID string) (nfType string) {
 	collName := "Subscriptions"
 	filter := bson.M{"subscriptionId": subscriptionID}
