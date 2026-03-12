@@ -506,25 +506,19 @@ func NFRegisterProcedure(nfProfile models.NfProfile) (header http.Header, respon
 		logger.ManagementLog.Warnln("[NRF] Expiry disabled. Calling NFDeleteAll for type:", nf.NfType)
 		NFDeleteAll(string(nf.NfType))
 	} else {
-
 		timein := time.Now().Local().Add(time.Second * time.Duration(nf.HeartBeatTimer*3))
 		putData["expireAt"] = timein
-
 		logger.ManagementLog.Debugln("[NRF] Expiry enabled. expireAt set to:", timein)
-
 		nfs, err := dbadapter.DBClient.RestfulAPIGetOne(collName, filter)
 		if err != nil {
 			logger.ManagementLog.Errorln("[NRF] DB RestfulAPIGetOne error:", err)
 		}
-
 		if len(nfs) == 0 {
 			putData["createdAt"] = time.Now()
 			logger.ManagementLog.Debugln("[NRF] New NF profile detected. createdAt added")
 		}
 	}
-
 	logger.ManagementLog.Debugln("[NRF] Calling handleNFProfileUpdateOrCreate")
-
 	return handleNFProfileUpdateOrCreate(nf, nfProfile, locationHeaderValue, collName, filter, putData)
 }
 
@@ -540,28 +534,20 @@ func handleNFProfileUpdateOrCreate(
 	var problemDetails *models.ProblemDetails
 
 	logger.ManagementLog.Debugln("[NRF] Enter handleNFProfileUpdateOrCreate")
-
 	ok, err := dbadapter.DBClient.RestfulAPIPutOne(collName, filter, putData)
 	if err != nil {
 		logger.ManagementLog.Errorln("[NRF] DB RestfulAPIPutOne error:", err)
 	}
 
 	if ok { // update case
-
 		logger.ManagementLog.Infoln("[NRF] NF Profile Updated:", nf.NfInstanceId)
-
 		uriList := nrf_context.GetNofificationUri(nf)
 		logger.ManagementLog.Debugln("[NRF] Notification URI list:", uriList)
-
 		Notification_event := models.NotificationEventType_PROFILE_CHANGED
 		nfInstanceUri := locationHeaderValue
-
 		for _, uri := range uriList {
-
 			logger.ManagementLog.Debugln("[NRF] Sending PROFILE_CHANGED notification to:", uri)
-
 			problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
-
 			if problemDetails != nil {
 				logger.ManagementLog.Errorln("[NRF] Notification failed for URI:", uri, " error:", problemDetails)
 				return nil, nil, problemDetails
@@ -570,39 +556,26 @@ func handleNFProfileUpdateOrCreate(
 
 		header = make(http.Header)
 		header.Add("Location", locationHeaderValue)
-
 		logger.ManagementLog.Infoln("[NRF] Returning HTTP 200 for NF Update")
-
 		return header, putData, nil
-
 	} else { // create case
-
 		logger.ManagementLog.Infoln("[NRF] Creating new NF Profile:", nfProfile.NfType)
-
 		uriList := nrf_context.GetNofificationUri(nf)
 		logger.ManagementLog.Debugln("[NRF] Notification URI list:", uriList)
-
 		Notification_event := models.NotificationEventType_REGISTERED
 		nfInstanceUri := locationHeaderValue
-
 		for _, uri := range uriList {
-
 			logger.ManagementLog.Debugln("[NRF] Sending REGISTERED notification to:", uri)
-
 			problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
-
 			if problemDetails != nil {
 				logger.ManagementLog.Errorln("[NRF] Notification failed for URI:", uri, " error:", problemDetails)
 				return nil, nil, problemDetails
 			}
 		}
-
 		header = make(http.Header)
 		header.Add("Location", locationHeaderValue)
-
 		logger.ManagementLog.Infoln("[NRF] Returning HTTP 200 for NF Create")
 		logger.ManagementLog.Infoln("[NRF] Location header:", locationHeaderValue)
-
 		return header, putData, nil
 	}
 }
