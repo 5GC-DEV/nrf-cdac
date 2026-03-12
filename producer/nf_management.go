@@ -504,20 +504,6 @@ func NFRegisterProcedure(nfProfile models.NfProfile) (header http.Header, respon
 	}
 
 	// Update NF Profile case
-	// Update NF Profile case
-	return handleNFProfileUpdateOrCreate(nf, nfProfile, locationHeaderValue, collName, filter, putData)
-}
-
-func handleNFProfileUpdateOrCreate(
-	nf models.NfProfile,
-	nfProfile models.NfProfile,
-	locationHeaderValue string,
-	collName string,
-	filter bson.M,
-	putData bson.M,
-) (http.Header, bson.M, *models.ProblemDetails) {
-	var header http.Header
-	var problemDetails *models.ProblemDetails
 	if ok, _ := dbadapter.DBClient.RestfulAPIPutOne(collName, filter, putData); ok { // true insert
 		logger.ManagementLog.Infoln("RestfulAPIPutOne True Insert")
 		uriList := nrf_context.GetNofificationUri(nf)
