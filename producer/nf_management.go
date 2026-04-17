@@ -350,10 +350,10 @@ func NFDeregisterProcedure(nfInstanceID string) (nfType string, problemDetails *
 		uriList := nrf_context.GetNofificationUri(nfProfiles[0])
 		nfInstanceUri := nrf_context.GetNfInstanceURI(nfInstanceID)
 		// set info for NotificationData
-		Notification_event := models.NotificationEventType_DEREGISTERED
+		NotificationEvent := models.NotificationEventType_DEREGISTERED
 		for _, uri := range uriList {
 			logger.ManagementLog.Infof("status Notification Uri: %v", uri)
-			problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
+			problemDetails = SendNFStatusNotify(NotificationEvent, nfInstanceUri, uri)
 			if problemDetails != nil {
 				logger.ManagementLog.Infoln("error in status notify", problemDetails)
 			}
@@ -523,12 +523,12 @@ func handleNFProfileUpdateOrCreate(
 		uriList := nrf_context.GetNofificationUri(nf)
 
 		// set info for NotificationData
-		Notification_event := models.NotificationEventType_PROFILE_CHANGED
+		NotificationEvent := models.NotificationEventType_PROFILE_CHANGED
 		nfInstanceUri := locationHeaderValue
 
 		// receive the rsp from handler
 		for _, uri := range uriList {
-			problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
+			problemDetails = SendNFStatusNotify(NotificationEvent, nfInstanceUri, uri)
 			if problemDetails != nil {
 				return nil, nil, problemDetails
 			}
@@ -541,11 +541,11 @@ func handleNFProfileUpdateOrCreate(
 		logger.ManagementLog.Infoln("Create NF Profile ", nfProfile.NfType)
 		uriList := nrf_context.GetNofificationUri(nf)
 		// set info for NotificationData
-		Notification_event := models.NotificationEventType_REGISTERED
+		NotificationEvent := models.NotificationEventType_REGISTERED
 		nfInstanceUri := locationHeaderValue
 
 		for _, uri := range uriList {
-			problemDetails = SendNFStatusNotify(Notification_event, nfInstanceUri, uri)
+			problemDetails = SendNFStatusNotify(NotificationEvent, nfInstanceUri, uri)
 			if problemDetails != nil {
 				return nil, nil, problemDetails
 			}
@@ -584,7 +584,7 @@ func GetNfTypeByNfInstanceID(nfInstanceID string) (nfType string) {
 	return "UNKNOWN_NF"
 }
 
-func SendNFStatusNotify(Notification_event models.NotificationEventType, nfInstanceUri string,
+func SendNFStatusNotify(NotificationEvent models.NotificationEventType, nfInstanceUri string,
 	url string,
 ) *models.ProblemDetails {
 	// Set client and set url
@@ -593,7 +593,7 @@ func SendNFStatusNotify(Notification_event models.NotificationEventType, nfInsta
 
 	configuration.SetBasePathNoGroup(url)
 	notifcationData := models.NotificationData{
-		Event:         Notification_event,
+		Event:         NotificationEvent,
 		NfInstanceUri: nfInstanceUri,
 	}
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
