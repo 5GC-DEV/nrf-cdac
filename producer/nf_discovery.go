@@ -68,7 +68,9 @@ const (
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
-	logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
+	// logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
+	logger.DiscoveryLog.Infof("---Received NFDiscovery request: %v", request.Query)
+	logger.DiscoveryLog.Infof("---Received NFDiscovery request: %s", request.Query.Encode())
 
 	response, problemDetails := NFDiscoveryProcedure(request.Query)
 	requesterNfType, targetNfType := GetRequesterAndTargetNfTypeGivenQueryParameters(request.Query)
