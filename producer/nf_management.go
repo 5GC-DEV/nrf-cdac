@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/5GC-DEV/openapi-cdac/Nnrf_NFManagement"
+	"github.com/5GC-DEV/openapi-cdac/models"
 	"github.com/mitchellh/mapstructure"
 	nrf_context "github.com/omec-project/nrf/context"
 	"github.com/omec-project/nrf/dbadapter"
@@ -20,8 +22,6 @@ import (
 	"github.com/omec-project/nrf/logger"
 	stats "github.com/omec-project/nrf/metrics"
 	"github.com/omec-project/nrf/util"
-	"github.com/omec-project/openapi/Nnrf_NFManagement"
-	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/httpwrapper"
 	"go.mongodb.org/mongo-driver/bson"
 )

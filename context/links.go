@@ -8,7 +8,7 @@
 
 package context
 
-import "github.com/omec-project/openapi/models"
+import "github.com/5GC-DEV/openapi-cdac/models"
 
 type Links struct {
 	Item []models.Link `json:"item" bson:"item"`

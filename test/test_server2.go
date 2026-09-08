@@ -8,9 +8,9 @@ package main
 import (
 	"net/http"
 
+	"github.com/5GC-DEV/openapi-cdac/models"
 	"github.com/gin-gonic/gin"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/http2_util"
 	utilLogger "github.com/omec-project/util/logger"
 )

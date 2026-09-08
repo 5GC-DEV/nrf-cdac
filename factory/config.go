@@ -13,9 +13,9 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/5GC-DEV/openapi-cdac/models"
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/openapi/models"
 	utilLogger "github.com/omec-project/util/logger"
 )
 
