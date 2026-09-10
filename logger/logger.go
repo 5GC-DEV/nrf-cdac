@@ -21,7 +21,6 @@ var (
 	AccessTokenLog *zap.SugaredLogger
 	DiscoveryLog   *zap.SugaredLogger
 	GinLog         *zap.SugaredLogger
-	GrpcLog        *zap.SugaredLogger
 	UtilLog        *zap.SugaredLogger
 	atomicLevel    zap.AtomicLevel
 )
@@ -60,12 +59,7 @@ func init() {
 	AccessTokenLog = log.Sugar().With("component", "NRF", "category", "Token")
 	DiscoveryLog = log.Sugar().With("component", "NRF", "category", "DSCV")
 	GinLog = log.Sugar().With("component", "NRF", "category", "GIN")
-	GrpcLog = log.Sugar().With("component", "NRF", "category", "GRPC")
 	UtilLog = log.Sugar().With("component", "NRF", "category", "Util")
-}
-
-func GetLogger() *zap.Logger {
-	return log
 }
 
 // SetLogLevel: set the log level (panic|fatal|error|warn|info|debug)

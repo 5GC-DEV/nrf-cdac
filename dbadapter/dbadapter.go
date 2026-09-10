@@ -8,9 +8,8 @@ import (
 
 	"github.com/omec-project/nrf/logger"
 	"github.com/omec-project/util/mongoapi"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type DBInterface interface {
@@ -24,7 +23,7 @@ type DBInterface interface {
 	RestfulAPIJSONPatch(collName string, filter bson.M, patchJSON []byte) error
 	RestfulAPIJSONPatchExtend(collName string, filter bson.M, patchJSON []byte, dataName string) error
 	RestfulAPIPost(collName string, filter bson.M, postData map[string]interface{}) (bool, error)
-	RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]interface{}) error
+	RestfulAPIPutMany(collName string, filterArray []bson.M, putDataArray []map[string]interface{}) error
 }
 
 var DBClient DBInterface = nil
@@ -75,60 +74,12 @@ func ConnectToDBClient(dbName string, url string, enableStream bool, nfProfileEx
 
 	if nfProfileExpiryEnable {
 		logger.AppLog.Infoln("NfProfile document expiry enabled")
-		ret := db.RestfulAPICreateTTLIndex("NfProfile", 0, "expireAt")
-		if ret {
-			logger.AppLog.Infoln("ttl Index created for Field : expireAt in Collection: NfProfile")
-		} else {
-			logger.AppLog.Infoln("ttl Index exists for Field : expireAt in Collection: NfProfile")
+		ttlIndexCreated := db.RestfulAPICreateTTLIndex("NfProfile", 0, "expireAt")
+		ttlIndexStatus := "exists"
+		if ttlIndexCreated {
+			ttlIndexStatus = "created"
 		}
+		logger.AppLog.Infof("ttl Index %s for field 'expireAt' in collection 'NfProfile'", ttlIndexStatus)
 	}
 	return DBClient
-}
-
-func (db *MongoDBClient) RestfulAPIGetOne(collName string, filter bson.M) (map[string]interface{}, error) {
-	return db.MongoClient.RestfulAPIGetOne(collName, filter)
-}
-
-func (db *MongoDBClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[string]interface{}, error) {
-	return db.MongoClient.RestfulAPIGetMany(collName, filter)
-}
-
-func (db *MongoDBClient) RestfulAPIPutOne(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
-	return db.MongoClient.RestfulAPIPutOne(collName, filter, putData)
-}
-
-func (db *MongoDBClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
-	return db.MongoClient.RestfulAPIPutOneNotUpdate(collName, filter, putData)
-}
-
-func (db *MongoDBClient) RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]interface{}) error {
-	return db.MongoClient.RestfulAPIPutMany(collName, filterArray, putDataArray)
-}
-
-func (db *MongoDBClient) RestfulAPIDeleteOne(collName string, filter bson.M) {
-	db.MongoClient.RestfulAPIDeleteOne(collName, filter)
-}
-
-func (db *MongoDBClient) RestfulAPIDeleteMany(collName string, filter bson.M) {
-	db.MongoClient.RestfulAPIDeleteMany(collName, filter)
-}
-
-func (db *MongoDBClient) RestfulAPIMergePatch(collName string, filter bson.M, patchData map[string]interface{}) error {
-	return db.MongoClient.RestfulAPIMergePatch(collName, filter, patchData)
-}
-
-func (db *MongoDBClient) RestfulAPIJSONPatch(collName string, filter bson.M, patchJSON []byte) error {
-	return db.MongoClient.RestfulAPIJSONPatch(collName, filter, patchJSON)
-}
-
-func (db *MongoDBClient) RestfulAPIJSONPatchExtend(collName string, filter bson.M, patchJSON []byte, dataName string) error {
-	return db.MongoClient.RestfulAPIJSONPatchExtend(collName, filter, patchJSON, dataName)
-}
-
-func (db *MongoDBClient) RestfulAPIPost(collName string, filter bson.M, postData map[string]interface{}) (bool, error) {
-	return db.MongoClient.RestfulAPIPost(collName, filter, postData)
-}
-
-func (db *MongoDBClient) RestfulAPIPostMany(collName string, filter bson.M, postDataArray []interface{}) error {
-	return db.MongoClient.RestfulAPIPostMany(collName, filter, postDataArray)
 }

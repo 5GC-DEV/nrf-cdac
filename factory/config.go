@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2025 Canonical Ltd
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -13,20 +14,15 @@ import (
 	"os"
 	"strconv"
 
-	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/openapi/models"
 	utilLogger "github.com/omec-project/util/logger"
 )
 
 const (
 	NRF_EXPECTED_CONFIG_VERSION = "1.0.0"
-	NRF_DEFAULT_IPV4            = "127.0.0.10"
-	NRF_DEFAULT_PORT            = "8000"
-	NRF_DEFAULT_PORT_INT        = 8000
+	NRF_DEFAULT_IPV4            = "127.0.0.1"
+	NRF_DEFAULT_PORT            = 29510
 	NRF_DEFAULT_SCHEME          = "https"
-	NRF_NFM_RES_URI_PREFIX      = "/nnrf-nfm/v1"
-	NRF_DISC_RES_URI_PREFIX     = "/nnrf-disc/v1"
 )
 
 type Config struct {
@@ -42,21 +38,14 @@ type Info struct {
 }
 
 type Configuration struct {
-	Sbi                   *Sbi              `yaml:"sbi,omitempty"`
-	MongoDBName           string            `yaml:"MongoDBName"`
-	MongoDBUrl            string            `yaml:"MongoDBUrl"`
-	WebuiUri              string            `yaml:"webuiUri"`
-	DefaultPlmnId         models.PlmnId     `yaml:"DefaultPlmnId"`
-	ServiceNameList       []string          `yaml:"serviceNameList,omitempty"`
-	PlmnSupportList       []PlmnSupportItem `yaml:"plmnSupportList,omitempty"`
-	NfKeepAliveTime       int32             `yaml:"nfKeepAliveTime,omitempty"`
-	MongoDBStreamEnable   bool              `yaml:"mongoDBStreamEnable"`
-	NfProfileExpiryEnable bool              `yaml:"nfProfileExpiryEnable"`
-}
-
-type PlmnSupportItem struct {
-	PlmnId     models.PlmnId   `yaml:"plmnId"`
-	SNssaiList []models.Snssai `yaml:"snssaiList,omitempty"`
+	Sbi                   *Sbi     `yaml:"sbi,omitempty"`
+	MongoDBName           string   `yaml:"MongoDBName"`
+	MongoDBUrl            string   `yaml:"MongoDBUrl"`
+	WebuiUri              string   `yaml:"webuiUri"`
+	ServiceNameList       []string `yaml:"serviceNameList,omitempty"`
+	NfKeepAliveTime       int32    `yaml:"nfKeepAliveTime,omitempty"`
+	MongoDBStreamEnable   bool     `yaml:"mongoDBStreamEnable"`
+	NfProfileExpiryEnable bool     `yaml:"nfProfileExpiryEnable"`
 }
 
 type Sbi struct {
@@ -71,8 +60,6 @@ type TLS struct {
 	PEM string `yaml:"pem,omitempty"`
 	Key string `yaml:"key,omitempty"`
 }
-
-var MinConfigAvailable bool
 
 func (c *Config) GetVersion() string {
 	if c.Info != nil && c.Info.Version != "" {
@@ -92,13 +79,13 @@ func (c *Config) GetSbiPort() int {
 	if c.Configuration != nil && c.Configuration.Sbi != nil && c.Configuration.Sbi.Port != 0 {
 		return c.Configuration.Sbi.Port
 	}
-	return NRF_DEFAULT_PORT_INT
+	return NRF_DEFAULT_PORT
 }
 
 func (c *Config) GetSbiBindingAddr() string {
 	var bindAddr string
 	if c.Configuration == nil || c.Configuration.Sbi == nil {
-		return "0.0.0.0:" + NRF_DEFAULT_PORT
+		return "0.0.0.0:" + strconv.Itoa(NRF_DEFAULT_PORT)
 	}
 	if c.Configuration.Sbi.BindingIPv4 != "" {
 		if bindIPv4 := os.Getenv(c.Configuration.Sbi.BindingIPv4); bindIPv4 != "" {
@@ -113,7 +100,7 @@ func (c *Config) GetSbiBindingAddr() string {
 	if c.Configuration.Sbi.Port != 0 {
 		bindAddr = bindAddr + strconv.Itoa(c.Configuration.Sbi.Port)
 	} else {
-		bindAddr = bindAddr + NRF_DEFAULT_PORT
+		bindAddr = bindAddr + strconv.Itoa(NRF_DEFAULT_PORT)
 	}
 	return bindAddr
 }
@@ -130,37 +117,11 @@ func (c *Config) GetSbiRegisterAddr() string {
 	if c.Configuration.Sbi.Port != 0 {
 		regAddr = regAddr + strconv.Itoa(c.Configuration.Sbi.Port)
 	} else {
-		regAddr = regAddr + NRF_DEFAULT_PORT
+		regAddr = regAddr + strconv.Itoa(NRF_DEFAULT_PORT)
 	}
 	return regAddr
 }
 
 func (c *Config) GetSbiUri() string {
 	return c.GetSbiScheme() + "://" + c.GetSbiRegisterAddr()
-}
-
-func (c *Config) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
-	for rsp := range commChannel {
-		logger.GrpcLog.Infoln("received updateConfig in the nrf app: ", rsp)
-		for _, ns := range rsp.NetworkSlice {
-			logger.GrpcLog.Infoln("Network Slice Name", ns.Name)
-			if ns.Site != nil {
-				logger.GrpcLog.Infoln("Network Slice has site name present")
-				site := ns.Site
-				logger.GrpcLog.Infoln("Site name", site.SiteName)
-				if site.Plmn != nil {
-					logger.GrpcLog.Infoln("Plmn mcc", site.Plmn.Mcc)
-					plmn := PlmnSupportItem{}
-					plmn.PlmnId.Mnc = site.Plmn.Mnc
-					plmn.PlmnId.Mcc = site.Plmn.Mcc
-					NrfConfig.Configuration.PlmnSupportList = append(NrfConfig.Configuration.PlmnSupportList, plmn)
-				} else {
-					logger.GrpcLog.Infoln("Plmn not present in the message")
-				}
-			}
-		}
-		logger.GrpcLog.Infoln("minimum config Available")
-		MinConfigAvailable = true
-	}
-	return true
 }
