@@ -68,7 +68,12 @@ const (
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
-	logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
+	// logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
+	if supi := request.Query.Get("supi"); supi != "" {
+		logger.DiscoveryLog.Infof("Handle NFDiscoveryRequest for SUPI=%s", supi)
+	} else {
+		logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
+	}
 
 	response, problemDetails := NFDiscoveryProcedure(request.Query)
 	requesterNfType, targetNfType := GetRequesterAndTargetNfTypeGivenQueryParameters(request.Query)
