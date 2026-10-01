@@ -17,6 +17,8 @@ import (
 	"time"
 
 	openapiLogger "github.com/5GC-DEV/openapi-cdac/logger"
+	"github.com/5GC-DEV/util-cdac/http2_util"
+	utilLogger "github.com/5GC-DEV/util-cdac/logger"
 	grpcClient "github.com/omec-project/config5g/proto/client"
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	"github.com/omec-project/nrf/accesstoken"
@@ -27,8 +29,6 @@ import (
 	"github.com/omec-project/nrf/logger"
 	"github.com/omec-project/nrf/management"
 	"github.com/omec-project/nrf/metrics"
-	"github.com/omec-project/util/http2_util"
-	utilLogger "github.com/omec-project/util/logger"
 	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

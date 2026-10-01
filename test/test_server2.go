@@ -9,10 +9,10 @@ import (
 	"net/http"
 
 	"github.com/5GC-DEV/openapi-cdac/models"
+	"github.com/5GC-DEV/util-cdac/http2_util"
+	utilLogger "github.com/5GC-DEV/util-cdac/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/util/http2_util"
-	utilLogger "github.com/omec-project/util/logger"
 )
 
 func main() {

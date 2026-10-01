@@ -18,10 +18,10 @@ import (
 
 	"github.com/5GC-DEV/openapi-cdac"
 	"github.com/5GC-DEV/openapi-cdac/models"
+	"github.com/5GC-DEV/util-cdac/httpwrapper"
 	"github.com/gin-gonic/gin"
 	"github.com/omec-project/nrf/logger"
 	"github.com/omec-project/nrf/producer"
-	"github.com/omec-project/util/httpwrapper"
 )
 
 // GetNFInstances - Retrieves a collection of NF Instances

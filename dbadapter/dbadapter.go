@@ -6,8 +6,8 @@ package dbadapter
 import (
 	"context"
 
+	"github.com/5GC-DEV/util-cdac/mongoapi"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/util/mongoapi"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
