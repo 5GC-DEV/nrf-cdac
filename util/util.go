@@ -13,9 +13,9 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/5GC-DEV/openapi-cdac/models"
 	"github.com/mitchellh/mapstructure"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/openapi/models"
 )
 
 func MarshToJsonString(v interface{}) (result []string) {

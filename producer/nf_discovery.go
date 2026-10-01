@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/5GC-DEV/openapi-cdac/models"
+	"github.com/5GC-DEV/util-cdac/httpwrapper"
 	"github.com/omec-project/nrf/context"
 	"github.com/omec-project/nrf/dbadapter"
 	"github.com/omec-project/nrf/logger"
 	stats "github.com/omec-project/nrf/metrics"
 	"github.com/omec-project/nrf/util"
-	"github.com/omec-project/openapi/models"
-	"github.com/omec-project/util/httpwrapper"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -68,9 +68,18 @@ const (
 
 func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
-	logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
-
+	// logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
+	supi := request.Query.Get("supi")
+	if supi != "" {
+		logger.DiscoveryLog.Infof("Handle NFDiscoveryRequest for SUPI=%s", supi)
+	} else {
+		logger.DiscoveryLog.Infoln("Handle NFDiscoveryRequest")
+		logger.DiscoveryLog.Infoln("Received empty supi from request")
+	}
 	response, problemDetails := NFDiscoveryProcedure(request.Query)
+	if supi != "" {
+		logger.DiscoveryLog.Debugln("response received for nfdiscovery for ueId: %s", supi)
+	}
 	requesterNfType, targetNfType := GetRequesterAndTargetNfTypeGivenQueryParameters(request.Query)
 	// Send Response
 	// step 4: process the return value from step 3
@@ -91,6 +100,7 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 }
 
 func NFDiscoveryProcedure(queryParameters url.Values) (*models.SearchResult, *models.ProblemDetails) {
+	supi := queryParameters.Get("supi")
 	if problem := validateMandatoryParams(queryParameters); problem != nil {
 		return nil, problem
 	}
@@ -105,7 +115,9 @@ func NFDiscoveryProcedure(queryParameters url.Values) (*models.SearchResult, *mo
 
 	// Fetch NF Profiles
 	nfProfilesRaw, _ := dbadapter.DBClient.RestfulAPIGetMany("NfProfile", filter)
-
+	if supi != "" {
+		logger.DiscoveryLog.Infoln("mongodb query completed for ueId: %s", supi)
+	}
 	// Decode NF Profiles
 	nfProfilesStruct := decodeNFProfiles(nfProfilesRaw)
 

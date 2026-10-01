@@ -7,12 +7,12 @@ package producer_test
 import (
 	"testing"
 
+	"github.com/5GC-DEV/openapi-cdac/models"
 	"github.com/google/uuid"
 	"github.com/omec-project/nrf/dbadapter"
 	"github.com/omec-project/nrf/factory"
 	"github.com/omec-project/nrf/logger"
 	"github.com/omec-project/nrf/producer"
-	"github.com/omec-project/openapi/models"
 	"go.mongodb.org/mongo-driver/bson"
 )
 

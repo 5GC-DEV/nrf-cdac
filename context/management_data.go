@@ -13,12 +13,12 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/5GC-DEV/openapi-cdac"
+	"github.com/5GC-DEV/openapi-cdac/models"
 	"github.com/mitchellh/mapstructure"
 	"github.com/omec-project/nrf/dbadapter"
 	"github.com/omec-project/nrf/factory"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/models"
 	"go.mongodb.org/mongo-driver/bson"
 )
 

@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/5GC-DEV/openapi-cdac/models"
 	"github.com/mitchellh/mapstructure"
 	"github.com/omec-project/nrf/dbadapter"
 	"github.com/omec-project/nrf/logger"
 	"github.com/omec-project/nrf/util"
-	"github.com/omec-project/openapi/models"
 	"go.mongodb.org/mongo-driver/bson"
 )
 

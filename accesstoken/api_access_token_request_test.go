@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/5GC-DEV/openapi-cdac/Nnrf_AccessToken"
+	"github.com/5GC-DEV/openapi-cdac/models"
 	"github.com/antihax/optional"
 	"github.com/omec-project/nrf/accesstoken"
 	"github.com/omec-project/nrf/dbadapter"
 	"github.com/omec-project/nrf/factory"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/openapi/Nnrf_AccessToken"
-	"github.com/omec-project/openapi/models"
 )
 
 func TestAccessTokenRequest(t *testing.T) {

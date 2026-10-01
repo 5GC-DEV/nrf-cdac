@@ -8,10 +8,10 @@ package producer
 import (
 	"net/http"
 
+	"github.com/5GC-DEV/openapi-cdac/models"
+	"github.com/5GC-DEV/util-cdac/httpwrapper"
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/openapi/models"
-	"github.com/omec-project/util/httpwrapper"
 )
 
 func HandleAccessTokenRequest(request *httpwrapper.Request) *httpwrapper.Response {
