@@ -78,7 +78,7 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 	}
 	response, problemDetails := NFDiscoveryProcedure(request.Query)
 	if supi != "" {
-		logger.DiscoveryLog.Infoln("response recieved for nfdiscovery for ueId: %s", supi)
+		logger.DiscoveryLog.Debugln("response received for nfdiscovery for ueId: %s", supi)
 	}
 	requesterNfType, targetNfType := GetRequesterAndTargetNfTypeGivenQueryParameters(request.Query)
 	// Send Response
