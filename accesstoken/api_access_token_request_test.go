@@ -8,60 +8,75 @@ package accesstoken_test
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/antihax/optional"
 	"github.com/omec-project/nrf/accesstoken"
-	"github.com/omec-project/nrf/dbadapter"
 	"github.com/omec-project/nrf/factory"
 	"github.com/omec-project/nrf/logger"
-	"github.com/omec-project/openapi/Nnrf_AccessToken"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2/Nnrf_AccessToken"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func TestAccessTokenRequest(t *testing.T) {
+	kl, err := os.OpenFile("/home/sslkey.log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		logger.AccessTokenLog.Warnln("failed to open ssl key log file:", err)
+		kl = nil
+	}
+	router := accesstoken.NewRouter()
+
+	server := &http.Server{
+		Addr: factory.NRF_DEFAULT_IPV4 + ":" + strconv.Itoa(factory.NRF_DEFAULT_PORT),
+		TLSConfig: &tls.Config{
+			KeyLogWriter: kl,
+		},
+
+		Handler: router,
+	}
+	t.Cleanup(func() {
+		if shutdownErr := server.Shutdown(context.Background()); shutdownErr != nil {
+			logger.AccessTokenLog.Warnln("access token test server shutdown error:", shutdownErr)
+		}
+		if kl != nil {
+			_ = kl.Close()
+		}
+	})
+
 	// run accesstoken Server Routine
 	go func() {
-		kl, _ := os.OpenFile("/home/sslkey.log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
-		router := accesstoken.NewRouter()
-
-		server := http.Server{
-			Addr: factory.NRF_DEFAULT_IPV4 + ":" + factory.NRF_DEFAULT_PORT,
-			TLSConfig: &tls.Config{
-				KeyLogWriter: kl,
-			},
-
-			Handler: router,
+		if serveErr := server.ListenAndServeTLS("/var/run/certs/tls.crt", "/var/run/certs/tls.key"); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			logger.AccessTokenLog.Warnln("access token test server error:", serveErr)
 		}
-		_ = server.ListenAndServeTLS("/var/run/certs/tls.crt", "/var/run/certs/tls.key")
 	}()
 	time.Sleep(time.Duration(2) * time.Second)
 
-	// connect to mongoDB
-	dbadapter.ConnectToDBClient("aether", "mongodb://140.113.214.205:30030", false, false)
-
 	// Set client and set url
 	configuration := Nnrf_AccessToken.NewConfiguration()
-	configuration.SetBasePath("https://127.0.0.1:29510")
-	client := Nnrf_AccessToken.NewAPIClient(configuration)
-
-	// Set test data (with expected data)
-	grantType := "client_credentials"
-	nfInstanceId := "0" // nfInstanceId of service consumer
-	scope := "nnrf-nfm"
-	localVarOptionals := Nnrf_AccessToken.AccessTokenRequestParamOpts{
-		NfType:             optional.NewInterface(models.NfType_NRF),                     // nfType of service consumer
-		TargetNfType:       optional.NewInterface(models.NfType_NRF),                     // nfType of service producer
-		TargetNfInstanceId: optional.NewInterface("2"),                                   // nfInstanceId of service producer
-		RequesterPlmn:      optional.NewInterface("{\"mcc\": \"111\",\"mnc\": \"111\"}"), // plmn of service consumer
-		TargetPlmn:         optional.NewInterface("{\"mcc\": \"111\",\"mnc\": \"111\"}"), // plmn of service producer
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["nrfApiRoot"]; exists {
+		apiRootVar.DefaultValue = "https://" + factory.NRF_DEFAULT_IPV4 + ":" + strconv.Itoa(factory.NRF_DEFAULT_PORT)
+		serverConfig.Variables["nrfApiRoot"] = apiRootVar
 	}
 
+	client := Nnrf_AccessToken.NewAPIClient(configuration)
+	apiAccessTokenRequestRequest := client.AccessTokenRequestAPI.AccessTokenRequest(context.TODO())
+	apiAccessTokenRequestRequest = apiAccessTokenRequestRequest.NfType(models.NFTYPE_NRF)
+	apiAccessTokenRequestRequest = apiAccessTokenRequestRequest.TargetNfType(models.NFTYPE_NRF)
+	apiAccessTokenRequestRequest = apiAccessTokenRequestRequest.TargetNfInstanceId("2")
+	requesterPlmn := models.NewPlmnId("111", "111")
+	apiAccessTokenRequestRequest = apiAccessTokenRequestRequest.RequesterPlmn(*requesterPlmn)
+	apiAccessTokenRequestRequest = apiAccessTokenRequestRequest.TargetPlmn(*requesterPlmn)
+	apiAccessTokenRequestRequest = apiAccessTokenRequestRequest.GrantType("client_credentials") // Set test data (with expected data)
+	apiAccessTokenRequestRequest = apiAccessTokenRequestRequest.NfInstanceId("0")               // Set test data (with expected data)
+	apiAccessTokenRequestRequest = apiAccessTokenRequestRequest.Scope("nnrf-nfm")               // Set test data (with expected data)
+
 	// Check test data (Use RESTful GET)
-	rep, res, err := client.AccessTokenRequestApi.AccessTokenRequest(context.TODO(), grantType, nfInstanceId, scope, &localVarOptionals)
+	rep, res, err := client.AccessTokenRequestAPI.AccessTokenRequestExecute(apiAccessTokenRequestRequest)
 	if err != nil {
 		logger.AppLog.Errorln(err)
 	}

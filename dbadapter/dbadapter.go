@@ -5,17 +5,65 @@ package dbadapter
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/omec-project/nrf/logger"
 	"github.com/omec-project/util/mongoapi"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+)
+
+const (
+	nfProfileCollection     = "NfProfile"
+	subscriptionsCollection = "Subscriptions"
+	ttlIndexField           = "expireAt"
+
+	// Field names of the index specifications returned by listIndexes.
+	specName               = "name"
+	specKey                = "key"
+	specExpireAfterSeconds = "expireAfterSeconds"
+
+	// MongoDB may have no writable primary yet when the NRF starts (election in
+	// progress, or the NRF started before MongoDB was ready), so index creation
+	// is retried with backoff instead of being attempted once.
+	ttlIndexOpTimeout    = 30 * time.Second
+	ttlIndexRetryTimeout = 5 * time.Minute
+	ttlIndexRetryInitial = time.Second
+	ttlIndexRetryMax     = 30 * time.Second
+
+	// mongoOpExists is used by unchangedCondition to match a document that
+	// has not yet been stamped with fieldDocVersion.
+	mongoOpExists = "$exists"
+
+	// fieldDocVersion is an opaque, NRF-internal token (not part of any
+	// 3GPP-defined NF profile schema) stamped by RestfulAPIReplaceIfUnchanged
+	// on every write it makes. Comparing
+	// this single scalar, rather than the whole document, is what makes their
+	// compare-and-swap reliable: MongoDB's equality for embedded documents is
+	// order-sensitive, but RestfulAPIGetOne decodes documents into
+	// map[string]interface{}, which never preserves field order, so comparing
+	// whole documents (or their nested arrays/objects) can report an
+	// unchanged profile as "changed". A document that predates this
+	// mechanism (no token yet) is matched by requiring the token to still be
+	// absent, which is an equally valid "nothing changed" signal, since any
+	// write through these two methods always adds one.
+	fieldDocVersion = "_docVersion"
 )
 
 type DBInterface interface {
 	RestfulAPIGetOne(collName string, filter bson.M) (map[string]interface{}, error)
 	RestfulAPIGetMany(collName string, filter bson.M) ([]map[string]interface{}, error)
+	// RestfulAPIPutOne, RestfulAPIPutOneNotUpdate, RestfulAPIPutMany,
+	// RestfulAPIMergePatch, RestfulAPIJSONPatch, and RestfulAPIJSONPatchExtend
+	// each stamp a fresh fieldDocVersion (see the identically named methods on
+	// MongoDBClient) so that no write through this interface can modify a
+	// document without also making that change visible to a concurrent
+	// RestfulAPIReplaceIfUnchanged caller.
 	RestfulAPIPutOne(collName string, filter bson.M, putData map[string]interface{}) (bool, error)
 	RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]interface{}) (bool, error)
 	RestfulAPIDeleteOne(collName string, filter bson.M) error
@@ -24,13 +72,134 @@ type DBInterface interface {
 	RestfulAPIJSONPatch(collName string, filter bson.M, patchJSON []byte) error
 	RestfulAPIJSONPatchExtend(collName string, filter bson.M, patchJSON []byte, dataName string) error
 	RestfulAPIPost(collName string, filter bson.M, postData map[string]interface{}) (bool, error)
-	RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]interface{}) error
+	RestfulAPIPutMany(collName string, filterArray []bson.M, putDataArray []map[string]interface{}) error
+	// RestfulAPIReplaceIfUnchanged atomically replaces the document matching
+	// filter with putData, but only if it currently has the same fieldDocVersion
+	// as expectedCurrent (matched by MongoDB itself as part of a single,
+	// non-upserting query); the replacement is stamped with a fresh version.
+	// Unlike RestfulAPIPutOne, which always upserts, a filter that no longer
+	// matches because the document changed is a safe no-op here rather than
+	// inserting a duplicate document.
+	RestfulAPIReplaceIfUnchanged(collName string, filter bson.M, expectedCurrent, putData map[string]interface{}) (bool, error)
+}
+
+// indexEnsurer is the one capability the startup index setup needs.
+//
+// Kept separate from DBInterface on purpose: that interface is what the whole
+// application is written against and what every test double implements, and
+// widening it for something only ConnectToDBClient calls would make each of
+// them implement a method they never use.
+type indexEnsurer interface {
+	EnsureIndex(ctx context.Context, collName string, spec mongoapi.IndexSpec) error
 }
 
 var DBClient DBInterface = nil
 
 type MongoDBClient struct {
 	mongoapi.MongoClient
+	dbName string
+}
+
+// unchangedCondition builds a filter matching the document selected by
+// filter only if its fieldDocVersion still equals expectedCurrent's (or, if
+// expectedCurrent has none yet, only if the stored document still has none
+// either).
+func unchangedCondition(filter bson.M, expectedCurrent map[string]interface{}) bson.M {
+	condition := bson.M{}
+	for k, v := range filter {
+		condition[k] = v
+	}
+	if version, ok := expectedCurrent[fieldDocVersion]; ok {
+		condition[fieldDocVersion] = version
+	} else {
+		condition[fieldDocVersion] = bson.M{mongoOpExists: false}
+	}
+	return condition
+}
+
+// stampDocVersion returns a copy of doc with a fresh fieldDocVersion, so the
+// next compare-and-swap against this write compares a single opaque scalar
+// instead of the whole document.
+func stampDocVersion(doc map[string]interface{}) map[string]interface{} {
+	stamped := make(map[string]interface{}, len(doc)+1)
+	for k, v := range doc {
+		stamped[k] = v
+	}
+	stamped[fieldDocVersion] = uuid.New().String()
+	return stamped
+}
+
+// appendDocVersionPatchOp returns patchJSON, an RFC 6902 JSON Patch document,
+// with an added operation stamping fieldDocVersion, so patch-based writes
+// also participate in the optimistic-concurrency check RestfulAPIReplaceIfUnchanged
+// relies on. "add" both creates the field (documents predating this
+// mechanism) and replaces it (per RFC 6902) when it already exists.
+func appendDocVersionPatchOp(patchJSON []byte) ([]byte, error) {
+	var ops []map[string]interface{}
+	if err := json.Unmarshal(patchJSON, &ops); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON patch: %w", err)
+	}
+	ops = append(ops, map[string]interface{}{
+		"op":    "add",
+		"path":  "/" + fieldDocVersion,
+		"value": uuid.New().String(),
+	})
+	return json.Marshal(ops)
+}
+
+// RestfulAPIPutOne, RestfulAPIPutOneNotUpdate, RestfulAPIPutMany,
+// RestfulAPIMergePatch, RestfulAPIJSONPatch, and RestfulAPIJSONPatchExtend
+// below all override the embedded MongoClient's methods so that every write
+// that could modify a document already covered by RestfulAPIReplaceIfUnchanged
+// also carries a fresh fieldDocVersion. Without this, a document written
+// through any of these instead of RestfulAPIPutOne or RestfulAPIReplaceIfUnchanged
+// would leave fieldDocVersion unchanged (or absent), and a concurrent
+// RestfulAPIReplaceIfUnchanged compare-and-swap started before that write
+// would see its expected version (or "no version yet") condition still
+// satisfied afterwards, silently overwriting the change.
+func (db *MongoDBClient) RestfulAPIPutOne(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
+	return db.MongoClient.RestfulAPIPutOne(collName, filter, stampDocVersion(putData))
+}
+
+func (db *MongoDBClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
+	return db.MongoClient.RestfulAPIPutOneNotUpdate(collName, filter, stampDocVersion(putData))
+}
+
+func (db *MongoDBClient) RestfulAPIPutMany(collName string, filterArray []bson.M, putDataArray []map[string]interface{}) error {
+	stamped := make([]map[string]interface{}, len(putDataArray))
+	for i, putData := range putDataArray {
+		stamped[i] = stampDocVersion(putData)
+	}
+	return db.MongoClient.RestfulAPIPutMany(collName, filterArray, stamped)
+}
+
+func (db *MongoDBClient) RestfulAPIMergePatch(collName string, filter bson.M, patchData map[string]interface{}) error {
+	return db.MongoClient.RestfulAPIMergePatch(collName, filter, stampDocVersion(patchData))
+}
+
+func (db *MongoDBClient) RestfulAPIJSONPatch(collName string, filter bson.M, patchJSON []byte) error {
+	stamped, err := appendDocVersionPatchOp(patchJSON)
+	if err != nil {
+		return err
+	}
+	return db.MongoClient.RestfulAPIJSONPatch(collName, filter, stamped)
+}
+
+func (db *MongoDBClient) RestfulAPIJSONPatchExtend(collName string, filter bson.M, patchJSON []byte, dataName string) error {
+	stamped, err := appendDocVersionPatchOp(patchJSON)
+	if err != nil {
+		return err
+	}
+	return db.MongoClient.RestfulAPIJSONPatchExtend(collName, filter, stamped, dataName)
+}
+
+func (db *MongoDBClient) RestfulAPIReplaceIfUnchanged(collName string, filter bson.M, expectedCurrent, putData map[string]interface{}) (bool, error) {
+	collection := db.Client.Database(db.dbName).Collection(collName)
+	result, err := collection.ReplaceOne(context.TODO(), unchangedCondition(filter, expectedCurrent), stampDocVersion(putData))
+	if err != nil {
+		return false, fmt.Errorf("RestfulAPIReplaceIfUnchanged ReplaceOne err: %w", err)
+	}
+	return result.MatchedCount > 0, nil
 }
 
 func iterateChangeStream(routineCtx context.Context, stream *mongo.ChangeStream) {
@@ -46,21 +215,27 @@ func iterateChangeStream(routineCtx context.Context, stream *mongo.ChangeStream)
 }
 
 func ConnectToDBClient(dbName string, url string, enableStream bool, nfProfileExpiryEnable bool) DBInterface {
+	var rawClient *mongoapi.MongoClient
 	for {
-		MongoClient, _ := mongoapi.NewMongoClient(url, dbName)
-		if MongoClient != nil {
-			logger.AppLog.Infoln("MongoDB Connection Successful")
-			DBClient = MongoClient
-			break
-		} else {
-			logger.AppLog.Infoln("MongoDB Connection Failed")
+		client, err := mongoapi.NewMongoClient(url, dbName)
+		if err != nil || client == nil {
+			logger.AppLog.Infoln("MongoDB Connection Failed:", err)
+			time.Sleep(2 * time.Second)
+			continue
 		}
+		logger.AppLog.Infoln("MongoDB Connection Successful")
+		rawClient = client
+		break
 	}
 
-	db := DBClient.(*mongoapi.MongoClient)
+	// Wrapped (rather than DBClient = rawClient directly) so MongoDBClient's own
+	// methods, such as RestfulAPIReplaceIfUnchanged, are available on DBClient.
+	wrapped := &MongoDBClient{MongoClient: *rawClient, dbName: dbName}
+	DBClient = wrapped
+
 	if enableStream {
 		logger.AppLog.Infoln("MongoDB Change stream Enabled")
-		database := db.Client.Database(dbName)
+		database := wrapped.Client.Database(dbName)
 		NfProfileColl := database.Collection("NfProfile")
 		// create stream to monitor actions on the collection
 		NfProfStream, err := NfProfileColl.Watch(context.TODO(), mongo.Pipeline{})
@@ -73,62 +248,284 @@ func ConnectToDBClient(dbName string, url string, enableStream bool, nfProfileEx
 		go iterateChangeStream(routineCtx, NfProfStream)
 	}
 
+	subscriptionsCtx, cancelSubscriptions := context.WithTimeout(context.Background(), ttlIndexRetryTimeout)
+	defer cancelSubscriptions()
+	if err := ensureSubscriptionsIndexes(subscriptionsCtx, wrapped); err != nil {
+		// GetNotificationUri runs up to seven filters over this collection on
+		// every NF registration, update and deregistration. Without the indexes
+		// each one scans, and nothing at runtime reports it -- the notifications
+		// still go out, just after a scan per condition.
+		logger.AppLog.Fatalf("could not ensure the Subscriptions indexes: %v", err)
+	}
+
 	if nfProfileExpiryEnable {
 		logger.AppLog.Infoln("NfProfile document expiry enabled")
-		ret := db.RestfulAPICreateTTLIndex("NfProfile", 0, "expireAt")
-		if ret {
-			logger.AppLog.Infoln("ttl Index created for Field : expireAt in Collection: NfProfile")
-		} else {
-			logger.AppLog.Infoln("ttl Index exists for Field : expireAt in Collection: NfProfile")
+		ctx, cancel := context.WithTimeout(context.Background(), ttlIndexRetryTimeout)
+		defer cancel()
+		if err := ensureTTLIndex(ctx, &wrapped.MongoClient, nfProfileCollection, ttlIndexField); err != nil {
+			// The TTL index is the only thing that removes expired NF profiles when
+			// nfProfileExpiryEnable is set. Running without it leaks dead profiles
+			// into NF discovery forever, so exit and let the deployment restart the
+			// NRF once MongoDB accepts writes instead of serving stale endpoints.
+			logger.AppLog.Fatalf("could not ensure ttl index for field '%s' in collection '%s': %v",
+				ttlIndexField, nfProfileCollection, err)
 		}
 	}
 	return DBClient
 }
 
-func (db *MongoDBClient) RestfulAPIGetOne(collName string, filter bson.M) (map[string]interface{}, error) {
-	return db.MongoClient.RestfulAPIGetOne(collName, filter)
+// ttlIndexState describes what the indexes of a collection say about the TTL
+// index the NRF relies on to expire dead NF profiles.
+type ttlIndexState int
+
+const (
+	// ttlIndexMissing: no index on the time field at all.
+	ttlIndexMissing ttlIndexState = iota
+	// ttlIndexPresent: an index on the time field with expireAfterSeconds set,
+	// so MongoDB expires the documents.
+	ttlIndexPresent
+	// ttlIndexConflicting: an index on the time field exists but has no
+	// expireAfterSeconds, so nothing is ever expired.
+	ttlIndexConflicting
+)
+
+// ensureTTLIndex makes sure a TTL index on timeField exists, retrying with
+// backoff until ctx expires. It reports success only after the index has been
+// observed through listIndexes, never on the strength of a create call alone.
+func ensureTTLIndex(ctx context.Context, db *mongoapi.MongoClient, collName, timeField string) error {
+	description := fmt.Sprintf("ttl index for field '%s' in collection '%s'", timeField, collName)
+	return retryEnsure(ctx, description, func() error {
+		return ensureTTLIndexOnce(ctx, db, collName, timeField)
+	})
 }
 
-func (db *MongoDBClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[string]interface{}, error) {
-	return db.MongoClient.RestfulAPIGetMany(collName, filter)
+// retryEnsure runs once until it succeeds or ctx expires, backing off between
+// attempts.
+//
+// Creating an index is a write, so it fails while the replica set has no
+// writable primary yet -- which is routine when the NRF and MongoDB start
+// together, and which ordinary writes succeeding later does not undo. Every
+// index the NRF ensures goes through here, so they all wait the same way and
+// report the same way.
+func retryEnsure(ctx context.Context, description string, once func() error) error {
+	backoff := ttlIndexRetryInitial
+	for attempt := 1; ; attempt++ {
+		err := once()
+		if err == nil {
+			return nil
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fmt.Errorf("gave up after %d attempts: %w (last error: %v)", attempt, ctxErr, err)
+		}
+		logger.AppLog.Warnf("attempt %d to ensure %s failed, retrying in %s: %v",
+			attempt, description, backoff, err)
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("gave up after %d attempts: %w (last error: %v)", attempt, ctx.Err(), err)
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, ttlIndexRetryMax)
+	}
 }
 
-func (db *MongoDBClient) RestfulAPIPutOne(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
-	return db.MongoClient.RestfulAPIPutOne(collName, filter, putData)
+// subscriptionsIndexes are the indexes the Subscriptions collection needs, one
+// per filter shape GetNotificationUri and deregistration use.
+//
+// Unlike NfProfile this collection is O(NF instances) rather than
+// O(subscribers), so no single query over it is expensive. What makes it worth
+// indexing is the fan-out: GetNotificationUri runs up to seven of these filters
+// on every NF registration, update and deregistration, and each one was a full
+// scan.
+//
+// The subdivision looks redundant and is not. MongoDB serves a match against a
+// whole embedded document from an index on the parent field, and a match on a
+// dotted path from an index on that path, and neither index serves the other
+// kind -- forced onto the wrong one, both scan the collection through the index.
+// So subscrCond and subscrCond.nfInstanceId are two indexes even though one
+// field is nested inside the other.
+//
+// None is unique: a subscription condition is not an identity, and several NFs
+// can subscribe to the same one.
+func subscriptionsIndexes() []mongoapi.IndexSpec {
+	return []mongoapi.IndexSpec{
+		{
+			// Whole-subdocument matches: addNfTypeCond, addNfInstanceIDCond,
+			// addAmfCond and addNfGroupCond.
+			//
+			// Not addGuamiListCond, and not the $or half of
+			// addNetworkSliceCond: both match subscrCond with $elemMatch,
+			// which selects documents only where the field is an array.
+			// subscrCond is a oneOf embedded document and never is one, so
+			// those two conditions match nothing whatever is indexed. That is
+			// a pre-existing defect in the notification matching rather than
+			// an indexing one, and it is not fixed here.
+			Name: "subscriptionsBySubscrCond",
+			Keys: mongoapi.AscendingKeys("subscrCond"),
+		},
+		{
+			// addServiceNameCond
+			Name: "subscriptionsByServiceName",
+			Keys: mongoapi.AscendingKeys("subscrCond.serviceName"),
+		},
+		{
+			// addNetworkSliceCond
+			Name: "subscriptionsByNsiList",
+			Keys: mongoapi.AscendingKeys("subscrCond.nsiList"),
+		},
+		{
+			// The DeleteMany that removes an NF's subscriptions when it
+			// deregisters.
+			Name: "subscriptionsByNfInstanceId",
+			Keys: mongoapi.AscendingKeys("subscrCond.nfInstanceId"),
+		},
+	}
 }
 
-func (db *MongoDBClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
-	return db.MongoClient.RestfulAPIPutOneNotUpdate(collName, filter, putData)
+// ensureSubscriptionsIndexes makes the Subscriptions collection carry every
+// index in subscriptionsIndexes.
+func ensureSubscriptionsIndexes(ctx context.Context, db indexEnsurer) error {
+	for _, spec := range subscriptionsIndexes() {
+		description := fmt.Sprintf("index '%s' in collection '%s'", spec.Name, subscriptionsCollection)
+		err := retryEnsure(ctx, description, func() error {
+			opCtx, cancel := context.WithTimeout(ctx, ttlIndexOpTimeout)
+			defer cancel()
+			return db.EnsureIndex(opCtx, subscriptionsCollection, spec)
+		})
+		if err != nil {
+			return fmt.Errorf("could not ensure %s: %w", description, err)
+		}
+		logger.AppLog.Infof("%s is present", description)
+	}
+	return nil
 }
 
-func (db *MongoDBClient) RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]interface{}) error {
-	return db.MongoClient.RestfulAPIPutMany(collName, filterArray, putDataArray)
+// ensureTTLIndexOnce runs a single inspect/repair/create/verify cycle.
+func ensureTTLIndexOnce(ctx context.Context, db *mongoapi.MongoClient, collName, timeField string) error {
+	opCtx, cancel := context.WithTimeout(ctx, ttlIndexOpTimeout)
+	defer cancel()
+
+	state, name, seconds, err := inspectTTLIndex(opCtx, db, collName, timeField)
+	if err != nil {
+		return err
+	}
+	switch state {
+	case ttlIndexPresent:
+		if seconds != 0 {
+			logger.AppLog.Warnf("index '%s' in collection '%s' expires documents %d seconds after '%s' "+
+				"instead of at the time stored in it", name, collName, seconds, timeField)
+		}
+		logger.AppLog.Infof("ttl index exists for field '%s' in collection '%s'", timeField, collName)
+		return nil
+	case ttlIndexConflicting:
+		logger.AppLog.Warnf("index '%s' in collection '%s' has no expireAfterSeconds, so expired documents are "+
+			"never removed; dropping it to recreate it as a ttl index", name, collName)
+		if dropErr := db.RestfulAPIDropTTLIndexWithContext(opCtx, collName, name); dropErr != nil {
+			return dropErr
+		}
+	case ttlIndexMissing:
+	}
+
+	if err = db.RestfulAPICreateTTLIndexWithContext(opCtx, collName, 0, timeField); err != nil {
+		// An index of the same name with different options blocks creation. Drop
+		// it here so the next attempt starts from a clean collection.
+		if mongoapi.IsIndexOptionsConflict(err) {
+			logger.AppLog.Warnf("index '%s' in collection '%s' conflicts with the ttl index, dropping it: %v",
+				timeField, collName, err)
+			if dropErr := db.RestfulAPIDropTTLIndexWithContext(opCtx, collName, timeField); dropErr != nil {
+				return errors.Join(err, dropErr)
+			}
+		}
+		return err
+	}
+
+	// Verify against listIndexes rather than trusting the create call.
+	state, _, _, err = inspectTTLIndex(opCtx, db, collName, timeField)
+	if err != nil {
+		return err
+	}
+	if state != ttlIndexPresent {
+		return fmt.Errorf("ttl index for field '%s' in collection '%s' is still absent after creation",
+			timeField, collName)
+	}
+	logger.AppLog.Infof("ttl index created for field '%s' in collection '%s'", timeField, collName)
+	return nil
 }
 
-func (db *MongoDBClient) RestfulAPIDeleteOne(collName string, filter bson.M) {
-	db.MongoClient.RestfulAPIDeleteOne(collName, filter)
+// inspectTTLIndex reads the index specifications of a collection and classifies
+// the one covering timeField.
+func inspectTTLIndex(ctx context.Context, db *mongoapi.MongoClient, collName, timeField string) (ttlIndexState, string, int32, error) {
+	specs, err := db.RestfulAPIListIndexes(ctx, collName)
+	if err != nil {
+		return ttlIndexMissing, "", 0, err
+	}
+	state, name, seconds := classifyTTLIndex(specs, timeField)
+	if name == "" {
+		name = timeField
+	}
+	return state, name, seconds, nil
 }
 
-func (db *MongoDBClient) RestfulAPIDeleteMany(collName string, filter bson.M) {
-	db.MongoClient.RestfulAPIDeleteMany(collName, filter)
+// classifyTTLIndex reports whether the given listIndexes specifications contain
+// a TTL index over timeField, together with the name and expireAfterSeconds of
+// the matching index.
+func classifyTTLIndex(specs []bson.M, timeField string) (ttlIndexState, string, int32) {
+	for _, spec := range specs {
+		if !indexKeyIsSingleField(spec[specKey], timeField) {
+			continue
+		}
+		name, _ := spec[specName].(string)
+		if seconds, ok := toInt32(spec[specExpireAfterSeconds]); ok {
+			return ttlIndexPresent, name, seconds
+		}
+		return ttlIndexConflicting, name, 0
+	}
+	return ttlIndexMissing, "", 0
 }
 
-func (db *MongoDBClient) RestfulAPIMergePatch(collName string, filter bson.M, patchData map[string]interface{}) error {
-	return db.MongoClient.RestfulAPIMergePatch(collName, filter, patchData)
+// indexKeyIsSingleField reports whether an index key document covers exactly
+// field. The key is decoded as bson.M or bson.D depending on the BSON options
+// of the client, so both are accepted. Either direction is valid for a TTL
+// index, which MongoDB only supports on a single field.
+func indexKeyIsSingleField(key any, field string) bool {
+	switch k := key.(type) {
+	case bson.M:
+		return len(k) == 1 && isIndexDirection(k[field])
+	case map[string]any:
+		return len(k) == 1 && isIndexDirection(k[field])
+	case bson.D:
+		return len(k) == 1 && k[0].Key == field && isIndexDirection(k[0].Value)
+	}
+	return false
 }
 
-func (db *MongoDBClient) RestfulAPIJSONPatch(collName string, filter bson.M, patchJSON []byte) error {
-	return db.MongoClient.RestfulAPIJSONPatch(collName, filter, patchJSON)
+func isIndexDirection(value any) bool {
+	direction, ok := toInt32(value)
+	return ok && (direction == 1 || direction == -1)
 }
 
-func (db *MongoDBClient) RestfulAPIJSONPatchExtend(collName string, filter bson.M, patchJSON []byte, dataName string) error {
-	return db.MongoClient.RestfulAPIJSONPatchExtend(collName, filter, patchJSON, dataName)
-}
-
-func (db *MongoDBClient) RestfulAPIPost(collName string, filter bson.M, postData map[string]interface{}) (bool, error) {
-	return db.MongoClient.RestfulAPIPost(collName, filter, postData)
-}
-
-func (db *MongoDBClient) RestfulAPIPostMany(collName string, filter bson.M, postDataArray []interface{}) error {
-	return db.MongoClient.RestfulAPIPostMany(collName, filter, postDataArray)
+// toInt32 normalizes the numeric BSON types listIndexes may return. Values that
+// are not an exact int32 report false, so a corrupt index specification is
+// classified as conflicting and repaired instead of being silently truncated.
+func toInt32(value any) (int32, bool) {
+	switch v := value.(type) {
+	case int32:
+		return v, true
+	case int64:
+		if v < math.MinInt32 || v > math.MaxInt32 {
+			return 0, false
+		}
+		return int32(v), true
+	case int:
+		return toInt32(int64(v))
+	case float64:
+		// The range is checked before converting because an out-of-range
+		// float-to-int conversion yields an implementation-dependent value. NaN
+		// and the infinities are rejected here as well: NaN differs from its own
+		// truncation, and the infinities fail the bounds.
+		if v < math.MinInt32 || v > math.MaxInt32 || v != math.Trunc(v) {
+			return 0, false
+		}
+		return int32(v), true
+	}
+	return 0, false
 }
